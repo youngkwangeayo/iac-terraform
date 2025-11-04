@@ -200,8 +200,23 @@ terraform validate  # ✅ Success! The configuration is valid.
 terraform plan      # Plan: 1 to add, 0 to change, 0 to destroy.
 ```
 
+#### 4. 테스트 결과 문서화
+
+**중요**: 모든 테스트 결과는 반드시 `tests/TEST-RESULT.md` 파일에 기록해야 합니다.
+
+각 테스트 결과는 다음 정보를 포함해야 합니다:
+- 테스트 일시
+- 테스트 모듈명
+- 테스트 결과 (통과/실패)
+- 발견된 이슈 (있을 경우)
+- 수정 내용 (있을 경우)
+- 검증 방법
+
+자세한 내용은 [tests/TEST-RESULT.md](tests/TEST-RESULT.md)를 참고하세요.
+
 ### 테스트 완료 모듈
 - [x] ECS Service 모듈 - [tests/ecs-service-test](tests/ecs-service-test/main.tf)
+- [x] ECR 모듈 - [tests/ecr-test](tests/ecr-test/main.tf)
 
 ## 작업 진행 상황
 

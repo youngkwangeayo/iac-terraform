@@ -827,10 +827,14 @@ terraform destroy -auto-approve
 
 ### 테스트 문서화
 
-모든 테스트 결과는 다음 정보를 포함해야 합니다:
+**중요**: 모든 테스트 결과는 반드시 `tests/TEST-RESULT.md` 파일에 기록해야 합니다.
+
+테스트 결과는 다음 정보를 포함해야 합니다:
 1. **테스트 일시**: 2025-11-04
 2. **테스트 모듈**: ECS Service
 3. **테스트 결과**: 통과/실패
 4. **발견된 이슈**: deployment_configuration 구조 오류
 5. **수정 내용**: deployment_* 속성을 리소스 최상위로 이동
 6. **검증 방법**: terraform validate, terraform plan
+
+자세한 테스트 결과는 [tests/TEST-RESULT.md](tests/TEST-RESULT.md) 참고
