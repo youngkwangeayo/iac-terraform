@@ -5,7 +5,8 @@ resource "local_file" "first" {
 }
 
 resource "local_file" "second" {
-  content = "두번째!"
+  content = "두번째! + 내용을 변경"
+  file_permission = "0400"
   filename = "${path.module}/result/second.txt"
 }
 
