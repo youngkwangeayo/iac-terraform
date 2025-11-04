@@ -1,6 +1,15 @@
 # IaC 템플릿화 프로젝트
 
-## 전체 목표
+## 📋 목차
+1. [프로젝트 개요](#프로젝트-개요)
+2. [현재 상태](#현재-상태) ⭐
+3. [디렉토리 구조](#디렉토리-구조)
+4. [개발 규칙](#개발-규칙)
+5. [모듈 테스트](#모듈-테스트)
+6. [작업 진행 상황](#작업-진행-상황)
+
+## 프로젝트 개요
+
 Terraform을 활용한 IaC 템플릿 구성으로 모듈 기반 개발을 하며, 개발 표준 및 모범 사례를 준수합니다.
 AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 솔루션을 빠르게 배포할 수 있도록 합니다.
 
@@ -19,6 +28,76 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 #### Phase 2: ECS 배포 환경 구축
 - ECS 관련 모듈 개발 (ELB, Security Group, Task Definition 등)
 - 완전한 ECS 배포 환경 구축 및 테스트
+
+## 현재 상태
+
+### ✅ 완료된 작업
+
+#### 1. 프로젝트 구조 설계 및 구축
+- [x] 디렉토리 구조 설계 (`infra/modules/`, `infra/dev/`, `infra/prod/`)
+- [x] 환경 독립적인 모듈 구조로 개선 (`infra/modules/`)
+- [x] 루트 모듈 관리 규칙 정립 (`resources/`, `projects/`)
+
+#### 2. 재사용 가능한 모듈 개발 (7개)
+- [x] **common** - 공통 네이밍 및 태그 관리
+- [x] **ecr** - ECR Repository
+- [x] **security-group** - Security Group
+- [x] **target-group** - Target Group
+- [x] **ecs-cluster** - ECS Cluster
+- [x] **ecs-task-definition** - ECS Task Definition
+- [x] **ecs-service** - ECS Service
+
+#### 3. 모듈 테스트 완료
+- [x] 7개 모듈 모두 테스트 통과 (`terraform validate`, `terraform plan`)
+- [x] 테스트 결과 문서화 ([tests/TEST-RESULT.md](tests/TEST-RESULT.md))
+- [x] 테스트 프레임워크 구축 (`tests/` 디렉토리)
+
+#### 4. 루트 모듈 작성 완료
+- [x] `infra/dev/resources/network` - VPC, Subnet data source
+- [x] `infra/dev/resources/elb` - ALB data source
+- [x] `infra/dev/projects/cms` - CMS 프로젝트 전체 스택
+
+### 🔄 다음 작업 (우선순위 순)
+
+#### 1. S3 Backend 설정
+- [ ] S3 Bucket 생성 (Terraform State 저장용)
+- [ ] DynamoDB Table 생성 (State Lock용)
+- [ ] Backend 설정 파일 업데이트
+
+#### 2. Network State 생성
+- [ ] `infra/dev/resources/network` 배포
+  - VPC, Subnet data source 동작 확인
+  - State에 네트워크 정보 저장
+
+#### 3. ELB State 생성
+- [ ] `infra/dev/resources/elb` 배포
+  - ALB, HTTPS Listener data source 동작 확인
+  - State에 ELB 정보 저장
+
+#### 4. IAM Role 생성
+- [ ] ecsTaskRole 생성
+- [ ] ecsTaskExecutionRole 생성
+
+#### 5. ECR 이미지 푸시
+- [ ] Docker 이미지 빌드
+- [ ] ECR에 이미지 푸시
+
+#### 6. CMS 프로젝트 배포
+- [ ] `infra/dev/projects/cms` 배포
+  - Remote State 참조 확인
+  - ECS 전체 스택 배포
+
+### 📊 진행률
+
+**Phase 2 (ECS 배포 환경 구축): 70% 완료**
+
+- ✅ 모듈 개발 (100%)
+- ✅ 모듈 테스트 (100%)
+- ✅ 루트 모듈 작성 (100%)
+- 🔄 인프라 배포 (0%)
+  - Backend 설정
+  - State 생성
+  - 실제 리소스 배포
 
 
 ## 네이밍 규칙

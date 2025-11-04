@@ -1,967 +1,463 @@
 # 작업 이력
 
-## 2025-11-04: 프로젝트 구조 정리 및 README 개선
+## 📌 다음 세션에서 할 작업 (우선순위 순)
 
-### 수행한 작업
+### 🎯 우선순위 1: S3 Backend 설정
 
-#### 1. 프로젝트 디렉토리 구조 생성
-기존 README.md에 명시된 디렉토리 구조를 실제로 구현했습니다.
+**목적**: Terraform State를 S3에 저장하고 DynamoDB로 State Lock 구현
 
-**생성된 디렉토리 구조:**
-```
-tf-aws-module/
-├── dev/
-│   ├── modules/          # 재사용 가능한 모듈
-│   │   ├── network/
-│   │   ├── ec2/
-│   │   └── ecs/
-│   ├── network/          # 루트 모듈
-│   ├── computing/        # 루트 모듈
-│   └── projects/         # 프로젝트별 배포 루트 모듈
-│
-└── prod/                 # dev와 동일한 구조
-    ├── modules/
-    ├── network/
-    ├── computing/
-    └── projects/
-```
+**작업 상세:**
 
-#### 2. README.md 문서 개선
+1. **S3 Bucket 생성**
+   ```bash
+   # AWS Console 또는 AWS CLI로 생성
+   aws s3api create-bucket \
+     --bucket terraform-state-dev-cms \
+     --region ap-northeast-2 \
+     --create-bucket-configuration LocationConstraint=ap-northeast-2
+   
+   # Versioning 활성화
+   aws s3api put-bucket-versioning \
+     --bucket terraform-state-dev-cms \
+     --versioning-configuration Status=Enabled
+   
+   # 암호화 활성화
+   aws s3api put-bucket-encryption \
+     --bucket terraform-state-dev-cms \
+     --server-side-encryption-configuration '{
+       "Rules": [{
+         "ApplyServerSideEncryptionByDefault": {
+           "SSEAlgorithm": "AES256"
+         }
+       }]
+     }'
+   ```
 
-**개선 사항:**
+2. **DynamoDB Table 생성**
+   ```bash
+   # State Lock용 테이블 생성
+   aws dynamodb create-table \
+     --table-name terraform-state-lock \
+     --attribute-definitions AttributeName=LockID,AttributeType=S \
+     --key-schema AttributeName=LockID,KeyType=HASH \
+     --billing-mode PAY_PER_REQUEST \
+     --region ap-northeast-2
+   ```
 
-1. **전체 목표 섹션 정리**
-   - 문장 구조를 명확하게 개선
-   - 마이그레이션 전략을 별도 섹션으로 분리하여 가독성 향상
-   - 핵심 개념을 bullet point로 명확히 정리
+3. **Backend 설정 확인**
+   - `infra/dev/resources/network/backend.tf`
+   - `infra/dev/resources/elb/backend.tf`
+   - `infra/dev/projects/cms/backend.tf`
+   
+   각 파일에 다음 형식으로 작성되어 있는지 확인:
+   ```hcl
+   terraform {
+     backend "s3" {
+       bucket         = "terraform-state-dev-cms"
+       key            = "dev/resources/network/terraform.tfstate"
+       region         = "ap-northeast-2"
+       dynamodb_table = "terraform-state-lock"
+       encrypt        = true
+     }
+   }
+   ```
 
-2. **단계별 목표 구조화**
-   - 기존의 불명확한 목표를 Phase 1, Phase 2로 구조화
-   - 각 Phase별 구체적인 작업 항목 명시
-
-3. **디렉토리 구조 상세화**
-   - 각 디렉토리의 역할을 주석으로 명확히 설명
-   - 파일 구조를 더 상세하게 표시 (main.tf, variables.tf, outputs.tf, backend.tf)
-   - State 관리 및 참조 관계를 주석으로 명시
-   - 실제 프로젝트 구조에 맞게 수정
-
-4. **Terraform 모범사례 섹션 확장**
-   - 기존의 간단한 bullet point를 3개의 서브섹션으로 확장
-   - **모듈 개발 원칙**: 네이밍, 설계 원칙, 단일 책임, 인터페이스 정의
-   - **State 관리**: Backend 설정, State 격리, State 참조 방법
-   - **환경 관리**: 환경 분리, 공통 코드 재사용, 환경별 설정 방법
-
-5. **작업 진행 상황 섹션 추가**
-   - 완료된 작업, 진행 중인 작업, 예정 작업을 체크리스트로 정리
-   - 프로젝트 진행 상황을 한눈에 파악 가능
-
-### 개선 효과
-
-1. **가독성 향상**: 문장이 명확해지고 구조화되어 이해하기 쉬워짐
-2. **실행 가능성**: 추상적이던 목표가 구체적인 Phase로 나뉘어 실행 가능해짐
-3. **문서 완성도**: Terraform 모범사례가 추가되어 개발 가이드로서 완성도 향상
-4. **진행 상황 추적**: 작업 진행 상황 섹션으로 프로젝트 관리 용이
-
-### 다음 작업 예정
-
-1. network 루트 모듈 개발 (data source 기반으로 기존 AWS 리소스 참조)
-2. ECS 관련 모듈 개발 (ELB, Security Group, Task Definition 등)
-3. S3 Backend 설정 구현
-4. 모듈 세분화 작업 진행
+**완료 조건:**
+- [ ] S3 Bucket 생성 및 설정 완료
+- [ ] DynamoDB Table 생성 완료
+- [ ] Backend 설정 파일 확인 완료
 
 ---
 
-## 2025-11-04: Phase 2 - CMS 프로젝트 ECS 배포 환경 구축 계획
+### 🎯 우선순위 2: Network State 생성
 
-### 루트 모듈 관리 규칙 정립
+**목적**: 기존 VPC, Subnet 정보를 data source로 읽어 State에 저장
 
-프로젝트 진행 중 루트 모듈 관리 규칙을 명확히 정의했습니다.
+**작업 상세:**
 
-#### 리소스 분류 기준
-리소스의 **수명주기(생성·삭제 주체)**와 **재사용 범위**를 기준으로 루트 모듈을 구성합니다.
+1. **사전 확인**
+   - AWS Console에서 실제 VPC ID 확인
+   - AWS Console에서 실제 Subnet ID 확인
 
-**1. 공통 인프라 리소스 (`resources/` 디렉토리)**
-- 관리 주체: 인프라팀
-- 수명주기: 프로젝트와 독립적으로 관리
-- 재사용 범위: 여러 프로젝트에서 공통으로 사용
-- 예시: Network, 범용 Security Group, 공유 ECR, 공유 EC2
-- 위치: `dev/resources/network/`, `dev/resources/elb/`
+2. **variables.tf 업데이트** (필요 시)
+   ```bash
+   cd infra/dev/resources/network
+   
+   # variables.tf에 VPC ID, Subnet Tag 등이 정의되어 있는지 확인
+   # 없으면 추가 필요
+   ```
 
-**2. 프로젝트 전용 리소스 (`projects/{project-name}/` 디렉토리)**
-- 관리 주체: 프로젝트 담당자
-- 수명주기: 프로젝트와 함께 생성/삭제
-- 재사용 범위: 해당 프로젝트 전용
-- 예시: 프로젝트 전용 ECR, ECS 클러스터, 프로젝트별 Security Group
-- 위치: `dev/projects/cms/` (cms 프로젝트의 모든 전용 리소스 포함)
+3. **Terraform 실행**
+   ```bash
+   cd infra/dev/resources/network
+   
+   # 1. 초기화
+   terraform init
+   
+   # 2. 구문 검증
+   terraform validate
+   # Expected: Success! The configuration is valid.
+   
+   # 3. 실행 계획 확인
+   terraform plan
+   # Expected: data source만 읽고 리소스 생성 없음
+   # 확인 사항:
+   # - data.aws_vpc.main이 실제 VPC를 찾는가?
+   # - data.aws_subnets.main이 실제 Subnet을 찾는가?
+   
+   # 4. 배포 (State 생성)
+   terraform apply
+   # State에 VPC, Subnet 정보 저장
+   
+   # 5. 출력 확인
+   terraform output
+   # vpc_id, subnet_ids가 올바르게 출력되는지 확인
+   ```
 
-**3. 향후 멀티 클라우드 대비**
-- 현재: `resources/{resource-type}` 구조
-- 향후: `resources/aws/{resource-type}`, `resources/gcp/{resource-type}` 형태로 마이그레이션
+**완료 조건:**
+- [ ] VPC data source 동작 확인
+- [ ] Subnet data source 동작 확인
+- [ ] State 파일에 네트워크 정보 저장 완료
+- [ ] outputs가 올바르게 출력됨
 
-#### 적용 결정
-- **ECR**: CMS 프로젝트 전용이므로 `dev/projects/cms/` 내부에서 리소스로 생성
-- **Network, ELB**: 공통 인프라이므로 `dev/resources/` 디렉토리로 이동 필요
-
-### 프로젝트 개요
-
-**프로젝트명**: cms
-**애플리케이션 포트**: 3827
-**컨테이너 이미지**: Docker 이미지 준비 완료 (ECR 미생성 상태)
-**참고 설정**: aws-def 디렉토리의 기존 ECS 설정 기반
-
-### 인프라 구성 요소
-
-#### 1. 기존 리소스 활용 (Data Source로 참조)
-- **VPC**: 기존 VPC 사용
-- **Subnet**: 기존 Subnet 사용 (서비스 파일 기준: 3개 subnet 사용)
-- **ELB (Application Load Balancer)**: 기존 ALB 사용
-
-#### 2. 신규 생성 리소스
-- **ECR (Elastic Container Registry)**: cms 프로젝트용 이미지 저장소
-- **Security Group**: ECS 서비스 전용 보안 그룹
-- **Target Group**: ALB에 연결할 타겟 그룹 (포트 3827)
-- **ECS Cluster**: ecs-dev-cms (FARGATE, FARGATE_SPOT)
-- **ECS Task Definition**: cms 애플리케이션 정의
-- **ECS Service**: cms 서비스 정의
-
-### 필요한 모듈 및 루트 모듈 구조
-
-#### 1. 재사용 가능한 모듈 (`infra/modules/` - 환경 독립적)
-```
-infra/modules/
-├── common/                     # 공통 네이밍 및 태그 모듈
-│   ├── main.tf
-│   ├── variables.tf
-│   └── outputs.tf
-├── ecr/                        # ECR 리포지토리 모듈
-│   ├── main.tf
-│   ├── variables.tf
-│   └── outputs.tf
-├── security-group/             # Security Group 모듈
-│   ├── main.tf
-│   ├── variables.tf
-│   └── outputs.tf
-├── target-group/               # Target Group 모듈
-│   ├── main.tf
-│   ├── variables.tf
-│   └── outputs.tf
-└── ecs/                        # ECS 관련 모듈
-    ├── ecs-cluster/            # ECS Cluster 모듈
-    │   ├── main.tf
-    │   ├── variables.tf
-    │   └── outputs.tf
-    ├── ecs-task-definition/    # ECS Task Definition 모듈
-    │   ├── main.tf
-    │   ├── variables.tf
-    │   └── outputs.tf
-    └── ecs-service/            # ECS Service 모듈
-        ├── main.tf
-        ├── variables.tf
-        └── outputs.tf
-```
-
-#### 2. 루트 모듈 구조 (규칙 적용 후)
-```
-infra/dev/
-├── resources/                  # 공통 인프라 리소스 (인프라팀 관리)
-│   ├── network/                # 네트워크 루트 모듈 (기존 VPC, Subnet 참조)
-│   │   ├── terraform.tf
-│   │   ├── backend.tf
-│   │   ├── main.tf             # data source로 VPC, Subnet 읽기
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   │
-│   └── elb/                    # ELB 루트 모듈 (기존 ALB 참조)
-│       ├── terraform.tf
-│       ├── backend.tf
-│       ├── main.tf             # data source로 기존 ALB 읽기
-│       ├── variables.tf
-│       └── outputs.tf
-│
-└── projects/cms/               # CMS 프로젝트 전용 리소스
-    ├── terraform.tf
-    ├── backend.tf
-    ├── main.tf                 # ECR, Target Group, Security Group, ECS 전체 스택 포함
-    ├── variables.tf
-    └── outputs.tf
-```
-
-### 작업 단계 (규칙 적용 후 수정)
-
-#### Step 1: 공통 인프라 리소스 루트 모듈 작성
-1. **dev/resources/network/** - VPC, Subnet data source 작성
-2. **dev/resources/elb/** - 기존 ALB data source 작성
-
-#### Step 2: 재사용 가능한 모듈 개발
-3. **modules/ecr/** - ECR 리포지토리 생성 모듈
-4. **modules/security-group/** - Security Group 생성 모듈
-5. **modules/target-group/** - Target Group 생성 모듈 (포트 3827)
-6. **modules/ecs-cluster/** - ECS Cluster 생성 모듈
-7. **modules/ecs-task-definition/** - Task Definition 생성 모듈
-8. **modules/ecs-service/** - ECS Service 생성 모듈
-
-#### Step 3: CMS 프로젝트 전용 리소스 통합
-9. **dev/projects/cms/** - CMS 프로젝트의 모든 전용 리소스를 하나의 루트 모듈로 구성
-    - ECR 리포지토리 생성 (프로젝트 전용)
-    - Target Group 생성 (프로젝트 전용, 포트 3827)
-    - Security Group 생성 (프로젝트 전용)
-    - ECS Cluster 생성 (프로젝트 전용)
-    - Task Definition 생성
-    - ECS Service 생성 (Target Group 연결)
-    - resources/network, resources/elb State 참조
-
-### ECS 설정 상세 (aws-def 기준)
-
-#### Cluster 설정
-- **Capacity Providers**: FARGATE, FARGATE_SPOT
-- **Status**: ACTIVE
-
-#### Service 설정
-- **Desired Count**: 1
-- **Capacity Provider**: FARGATE (weight: 1, base: 0)
-- **Platform Version**: LATEST
-- **Deployment Configuration**:
-  - Circuit Breaker: enabled (rollback: true)
-  - Maximum Percent: 200
-  - Minimum Healthy Percent: 100
-- **Health Check Grace Period**: 90초
-- **Scheduling Strategy**: REPLICA
-- **Availability Zone Rebalancing**: ENABLED
-- **Enable Execute Command**: true
-- **Assign Public IP**: ENABLED
-
-#### Network Configuration
-- **Subnets**: 3개 subnet 사용 (기존 인프라 참조)
-- **Security Groups**: 신규 생성 (포트 3827 허용)
-- **Assign Public IP**: ENABLED
-
-#### Load Balancer 연결
-- **Target Group**: 신규 생성 (포트 3827)
-- **Container Name**: cms
-- **Container Port**: 3827
-
-### 예상 산출물
-
-1. **7개의 재사용 가능한 모듈** (common 모듈 추가)
-2. **3개의 루트 모듈** (resources/network, resources/elb, projects/cms)
-3. **Backend 설정** (S3 + DynamoDB)
-4. **완전한 ECS 배포 환경**
+**문제 해결:**
+- VPC를 찾지 못하면: variables.tf에서 VPC 필터 조건 수정
+- Subnet을 찾지 못하면: Tag 기반 필터 조건 확인
 
 ---
 
-## 2025-11-04: Phase 2 실제 작업 완료
+### 🎯 우선순위 3: ELB State 생성
 
-### 작업 1: 루트 모듈 관리 규칙에 따른 구조 재편성
+**목적**: 기존 ALB, HTTPS Listener 정보를 data source로 읽어 State에 저장
 
-#### 디렉토리 구조 변경
-기존 구조를 규칙에 맞게 재편성했습니다.
+**작업 상세:**
 
-**변경 내역:**
-```
-변경 전:
-dev/
-├── network/        # 루트 모듈
-├── elb/            # 루트 모듈
-└── ecr/            # 루트 모듈
+1. **사전 확인**
+   - AWS Console에서 실제 ALB ARN 확인
+   - AWS Console에서 HTTPS Listener ARN 확인
 
-변경 후:
-dev/
-├── resources/      # 공통 인프라 (인프라팀 관리)
-│   ├── network/
-│   └── elb/
-└── projects/       # 프로젝트별 전용 리소스
-    └── cms/        # ECR, Target Group, SG, ECS 모두 포함
-```
+2. **Terraform 실행**
+   ```bash
+   cd infra/dev/resources/elb
+   
+   # 1. 초기화
+   terraform init
+   
+   # 2. 구문 검증
+   terraform validate
+   
+   # 3. Remote State 참조 확인
+   terraform plan
+   # 확인 사항:
+   # - data.terraform_remote_state.network가 동작하는가?
+   # - data.aws_lb.main이 실제 ALB를 찾는가?
+   # - data.aws_lb_listener.https가 실제 Listener를 찾는가?
+   
+   # 4. 배포
+   terraform apply
+   
+   # 5. 출력 확인
+   terraform output
+   # alb_arn, https_listener_arn, security_groups가 출력되는지 확인
+   ```
 
-**수행 작업:**
-1. `dev/network` → `dev/resources/network` 이동
-2. `dev/elb` → `dev/resources/elb` 이동
-3. `dev/ecr` 삭제 (cms 프로젝트에 통합)
-4. Backend 파일의 State 경로 업데이트
-   - `dev/resources/network/backend.tf`: `key = "dev/resources/network/terraform.tfstate"`
-   - `dev/resources/elb/backend.tf`: `key = "dev/resources/elb/terraform.tfstate"`
+**완료 조건:**
+- [ ] Network State 참조 성공
+- [ ] ALB data source 동작 확인
+- [ ] HTTPS Listener data source 동작 확인
+- [ ] State 파일에 ELB 정보 저장 완료
 
-### 작업 2: 재사용 가능한 모듈 개발 (총 7개)
+---
 
-#### 생성된 모듈 목록
-1. **modules/common** - 공통 네이밍 및 태그 관리 (신규 추가)
-2. **modules/ecr** - ECR 리포지토리
-3. **modules/security-group** - Security Group
-4. **modules/target-group** - Target Group
-5. **modules/ecs-cluster** - ECS Cluster
-6. **modules/ecs-task-definition** - ECS Task Definition
-7. **modules/ecs-service** - ECS Service
+### 🎯 우선순위 4: IAM Role 생성
 
-#### modules/common 상세 설명
-**목적:** 모든 프로젝트에서 일관된 네이밍과 태그를 사용하기 위한 공통 모듈
+**목적**: ECS Task 실행에 필요한 IAM Role 생성
 
-**지원하는 네이밍 패턴:**
-- 기본: `{environment}-{project_name}` (예: `dev-cms`)
-- 서비스 포함: `{environment}-{aws_service}-{project_name}` (예: `dev-ecs-cms`)
-- 전체: `{environment}-{aws_service}-{project_name}-{component}` (예: `dev-ecs-cms-api`)
+**작업 상세:**
 
-**자동 생성 태그:**
-```hcl
+#### 4-1. ecsTaskExecutionRole 생성
+
+```bash
+# Trust Policy 파일 생성
+cat > /tmp/ecs-task-execution-trust-policy.json << 'POLICY'
 {
-  Environment = "dev"
-  Project     = "cms"
-  ManagedBy   = "Terraform"
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
 }
+POLICY
+
+# Role 생성
+aws iam create-role \
+  --role-name ecsTaskExecutionRole \
+  --assume-role-policy-document file:///tmp/ecs-task-execution-trust-policy.json
+
+# AWS 관리형 정책 연결
+aws iam attach-role-policy \
+  --role-name ecsTaskExecutionRole \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+# ARN 확인
+aws iam get-role --role-name ecsTaskExecutionRole --query 'Role.Arn'
 ```
 
-**사용 예시:**
-```hcl
-module "common" {
-  source = "../../modules/common"
+#### 4-2. ecsTaskRole 생성
 
-  environment  = "dev"
-  project_name = "cms"
-  aws_service  = "ecs"      # 옵션
-  component    = "api"       # 옵션
-  additional_tags = {}       # 옵션
+```bash
+# Trust Policy 파일 생성
+cat > /tmp/ecs-task-trust-policy.json << 'POLICY'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
 }
+POLICY
 
-locals {
-  name_prefix = module.common.name_prefix
-  common_tags = module.common.common_tags
-}
+# Role 생성
+aws iam create-role \
+  --role-name ecsTaskRole \
+  --assume-role-policy-document file:///tmp/ecs-task-trust-policy.json
+
+# 필요한 정책 연결 (애플리케이션에 따라 다름)
+# 예: S3 접근이 필요하면 S3 관련 정책 추가
+
+# ARN 확인
+aws iam get-role --role-name ecsTaskRole --query 'Role.Arn'
 ```
 
-### 작업 3: dev/projects/cms 통합 루트 모듈 작성
+**완료 조건:**
+- [ ] ecsTaskExecutionRole 생성 완료
+- [ ] ecsTaskRole 생성 완료
+- [ ] 각 Role의 ARN 확인 및 기록
 
-#### 구성 요소
-CMS 프로젝트의 모든 전용 리소스를 하나의 루트 모듈에 통합했습니다.
+---
 
-**파일 구조:**
-```
-dev/projects/cms/
-├── terraform.tf       # Terraform >= 1.9.0, AWS Provider ~> 6.18.0
-├── backend.tf         # S3 backend (key: dev/projects/cms/terraform.tfstate)
-├── variables.tf       # 프로젝트 설정 변수
-├── main.tf            # 모든 리소스 정의
-└── outputs.tf         # 출력 값
-```
+### 🎯 우선순위 5: ECR 이미지 푸시
 
-**main.tf 구성 섹션:**
+**목적**: CMS 컨테이너 이미지를 ECR에 푸시
 
-1. **Remote State 참조**
-   ```hcl
-   data "terraform_remote_state" "network" {
-     # dev/resources/network State 참조
-   }
+**사전 조건:**
+- ECR Repository가 생성되어 있어야 함 (CMS 배포 시 자동 생성됨)
+- 또는 먼저 ECR만 생성하려면:
+  ```bash
+  cd infra/dev/projects/cms
+  terraform apply -target=module.ecr
+  ```
 
-   data "terraform_remote_state" "elb" {
-     # dev/resources/elb State 참조
-   }
+**작업 상세:**
+
+1. **ECR 로그인**
+   ```bash
+   aws ecr get-login-password --region ap-northeast-2 | \
+     docker login --username AWS --password-stdin \
+     <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
    ```
 
-2. **공통 모듈 사용**
-   ```hcl
-   module "common" {
-     source       = "../../modules/common"
-     environment  = var.environment
-     project_name = var.project_name
-   }
+2. **Docker 이미지 빌드**
+   ```bash
+   # CMS 애플리케이션 디렉토리로 이동
+   cd /path/to/cms/app
+   
+   # 이미지 빌드
+   docker build -t dev-cms:latest .
    ```
 
-3. **ECR Repository** (프로젝트 전용)
-   - 리포지토리명: `dev-cms`
-   - Lifecycle policy: 7일 이상된 untagged 이미지 삭제, 최근 10개 tagged 이미지 유지
+3. **이미지 태그 및 푸시**
+   ```bash
+   # ECR Repository URL 확인
+   ECR_URL=$(cd infra/dev/projects/cms && terraform output -raw ecr_repository_url)
+   
+   # 이미지 태그
+   docker tag dev-cms:latest $ECR_URL:latest
+   docker tag dev-cms:latest $ECR_URL:v1.0.0
+   
+   # 이미지 푸시
+   docker push $ECR_URL:latest
+   docker push $ECR_URL:v1.0.0
+   ```
 
-4. **Security Group** (프로젝트 전용)
-   - 포트 3827 허용 (ALB에서 들어오는 트래픽)
-   - 모든 아웃바운드 트래픽 허용
+**완료 조건:**
+- [ ] ECR 로그인 성공
+- [ ] Docker 이미지 빌드 완료
+- [ ] 이미지 푸시 완료
+- [ ] ECR Console에서 이미지 확인
 
-5. **Target Group** (프로젝트 전용)
-   - 포트: 3827
-   - 헬스 체크 경로: `/api/ping`
-   - Target type: `ip` (Fargate용)
+---
 
-6. **ALB Listener Rule**
-   - HTTPS 리스너에 규칙 추가
-   - Path 패턴 기반 라우팅: `/cms/*`
-   - Priority: 100
+### 🎯 우선순위 6: CMS 프로젝트 배포
 
-7. **ECS Cluster** (프로젝트 전용)
-   - Capacity providers: FARGATE, FARGATE_SPOT
-   - Container Insights 활성화
+**목적**: ECS 기반 CMS 애플리케이션 전체 스택 배포
 
-8. **CloudWatch Log Group**
-   - Log group: `/ecs/dev-cms`
-   - 보관 기간: 7일
+**사전 조건 확인:**
+- [x] Network State 생성 완료
+- [x] ELB State 생성 완료
+- [x] IAM Role 생성 완료
+- [x] ECR 이미지 푸시 완료
 
-9. **ECS Task Definition**
-   - CPU: 512, Memory: 1024
-   - Container 포트: 3827
-   - 헬스 체크: `curl -f http://localhost:3827/api/ping`
-   - 환경 변수: PORT, ENVIRONMENT
+**작업 상세:**
 
-10. **ECS Service**
-    - Desired count: 1
-    - Capacity provider: FARGATE (weight: 1)
-    - Deployment circuit breaker 활성화
-    - ECS Exec 활성화
-    - Health check grace period: 90초
+1. **variables.tf 확인 및 수정**
+   ```bash
+   cd infra/dev/projects/cms
+   
+   # variables.tf에서 다음 값들 확인:
+   # - task_role_arn: IAM Role ARN
+   # - execution_role_arn: IAM Role ARN
+   # - container_image: ECR 이미지 URL (또는 비워두면 ECR URL 자동 사용)
+   ```
 
-**주요 변수 (variables.tf):**
-```hcl
-variable "container_port" {
-  default = 3827
-}
+2. **Terraform 실행**
+   ```bash
+   # 1. 초기화
+   terraform init
+   
+   # 2. 구문 검증
+   terraform validate
+   
+   # 3. 실행 계획 확인
+   terraform plan
+   # 확인 사항:
+   # - Remote State 참조 (network, elb) 동작하는가?
+   # - 생성될 리소스 개수가 예상과 맞는가?
+   # - ECR, Security Group, Target Group, ECS Cluster, Task Definition, Service
+   
+   # 4. 배포
+   terraform apply
+   # 약 5-10분 소요 예상
+   
+   # 5. 출력 확인
+   terraform output
+   ```
 
-variable "task_cpu" {
-  default = "512"
-}
+3. **배포 확인**
+   ```bash
+   # ECS 서비스 상태 확인
+   aws ecs describe-services \
+     --cluster dev-cms-cluster \
+     --services dev-cms-service \
+     --query 'services[0].{Status:status,Running:runningCount,Desired:desiredCount}'
+   
+   # Task 상태 확인
+   aws ecs list-tasks \
+     --cluster dev-cms-cluster \
+     --service-name dev-cms-service
+   
+   # ALB Target Group 헬스 체크 확인
+   aws elbv2 describe-target-health \
+     --target-group-arn <TARGET_GROUP_ARN>
+   ```
 
-variable "task_memory" {
-  default = "1024"
-}
+**완료 조건:**
+- [ ] Terraform apply 성공
+- [ ] ECS Service가 Running 상태
+- [ ] Task가 정상 실행 중
+- [ ] Target Group Health Check 통과
+- [ ] 애플리케이션 접근 가능
 
-variable "health_check_path" {
-  default = "/api/ping"
-}
+**문제 해결:**
+- Task가 시작하지 않으면: CloudWatch Logs 확인
+- Health Check 실패: Security Group 규칙 확인
+- 이미지 pull 실패: IAM Role 권한 확인
 
-variable "task_role_arn" {
-  default = "arn:aws:iam::365485194891:role/ecsTaskRole"
-}
+---
 
-variable "execution_role_arn" {
-  default = "arn:aws:iam::365485194891:role/ecsTaskExecutionRole"
-}
-```
+## 📚 컨텍스트 정보
 
-### 작업 결과 요약
-
-#### 완성된 디렉토리 구조
+### 프로젝트 구조
 ```
 infra/
-├── modules/                    # 재사용 가능한 모듈 (환경 독립적)
-│   ├── common/                 # 공통 네이밍 및 태그 (신규)
+├── modules/              # 재사용 가능한 모듈 (환경 독립적)
+│   ├── common/
 │   ├── ecr/
 │   ├── security-group/
 │   ├── target-group/
-│   └── ecs/                    # ECS 관련 모듈 (구조화)
+│   └── ecs/
 │       ├── ecs-cluster/
 │       ├── ecs-task-definition/
 │       └── ecs-service/
 │
 └── dev/
-    ├── resources/              # 공통 인프라 (인프라팀 관리)
-    │   ├── network/
-    │   │   ├── terraform.tf
-    │   │   ├── backend.tf     # State: dev/resources/network/terraform.tfstate
-    │   │   ├── main.tf        # data source로 VPC, Subnet 참조
-    │   │   ├── variables.tf
-    │   │   └── outputs.tf
-    │   │
-    │   └── elb/
-    │       ├── terraform.tf
-    │       ├── backend.tf     # State: dev/resources/elb/terraform.tfstate
-    │       ├── main.tf        # data source로 ALB 참조
-    │       ├── variables.tf
-    │       └── outputs.tf
+    ├── resources/        # 공통 인프라
+    │   ├── network/      # VPC, Subnet data source
+    │   └── elb/          # ALB data source
     │
-    └── projects/              # 프로젝트별 전용 리소스
-        └── cms/
-            ├── terraform.tf
-            ├── backend.tf     # State: dev/projects/cms/terraform.tfstate
-            ├── main.tf        # ECR, SG, TG, ECS 전체 스택
-            ├── variables.tf
-            └── outputs.tf
+    └── projects/         # 프로젝트별 전용 리소스
+        └── cms/          # CMS 프로젝트 전체 스택
 ```
 
-#### 핵심 설계 원칙 적용
-1. ✅ **수명주기 관리**: 공통 인프라는 resources/, 프로젝트 전용은 projects/
-2. ✅ **재사용성**: 7개의 모듈로 코드 재사용
-3. ✅ **일관성**: common 모듈로 네이밍과 태그 통일
-4. ✅ **격리성**: State 파일을 리소스 타입별로 분리
-5. ✅ **참조 관리**: Remote State로 공통 인프라 참조
+### CMS 프로젝트 리소스
+- **ECR Repository**: dev-cms
+- **Security Group**: dev-cms-ecs
+- **Target Group**: dev-cms-tg (포트 3827)
+- **ECS Cluster**: dev-cms-cluster
+- **ECS Task Definition**: dev-cms-task
+- **ECS Service**: dev-cms-service
 
-### 다음 세션 작업 가이드
+### AWS 리전
+- **ap-northeast-2** (서울)
 
-#### 1. 초기 설정 (첫 배포 시)
-```bash
-# 1. resources/network 배포
-cd dev/resources/network
-terraform init
-terraform plan
-terraform apply
-
-# 2. resources/elb 배포
-cd ../elb
-terraform init
-terraform plan
-terraform apply
-
-# 3. projects/cms 배포
-cd ../../projects/cms
-terraform init
-terraform plan
-terraform apply
-```
-
-#### 2. 새로운 프로젝트 추가 시
-```bash
-# dev/projects/{new-project}/ 디렉토리 생성
-# main.tf 작성 시:
-# - module "common" 사용
-# - data "terraform_remote_state" "network" 참조
-# - data "terraform_remote_state" "elb" 참조
-# - 프로젝트 전용 리소스 정의
-```
-
-#### 3. 공통 모듈 사용 패턴
-```hcl
-# dev/projects/{project-name}/main.tf
-module "common" {
-  source       = "../../../modules/common"
-  environment  = var.environment
-  project_name = var.project_name
-}
-
-locals {
-  name_prefix = module.common.name_prefix
-  common_tags = module.common.common_tags
-}
-
-# 리소스 생성 시
-module "ecr" {
-  source          = "../../../modules/ecr"
-  repository_name = local.name_prefix
-  tags            = local.common_tags
-}
-```
-
-#### 4. Terraform 버전 통일
-모든 루트 모듈과 모듈에서 동일한 버전 사용:
-```hcl
-terraform {
-  required_version = ">= 1.9.0"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 6.18.0"
-    }
-  }
-}
-```
-
-### 주의사항
-
-1. **루트 모듈 생성 시 반드시 규칙 준수**
-   - 공통 인프라 → `dev/resources/{resource-type}/`
-   - 프로젝트 전용 → `dev/projects/{project-name}/`
-
-2. **Backend State Key 규칙**
-   - Resources: `dev/resources/{resource-type}/terraform.tfstate`
-   - Projects: `dev/projects/{project-name}/terraform.tfstate`
-
-3. **네이밍 규칙 일관성**
-   - 항상 `module "common"` 사용
-   - `{environment}-{project_name}` 형식 준수
-
-4. **태그 일관성**
-   - 모든 리소스에 `common_tags` 적용
-   - 추가 태그는 `additional_tags`로 병합
-
-5. **Remote State 참조**
-   - 공통 인프라는 항상 resources State 참조
-   - State bucket, key, region 정확히 지정
+### 참고 문서
+- [README.md](README.md) - 프로젝트 개요 및 규칙
+- [tests/TEST-RESULT.md](tests/TEST-RESULT.md) - 모듈 테스트 결과
 
 ---
 
-## 2025-11-04: 모듈 테스트 프레임워크 구축
-
-### 테스트 환경 구성
-
-프로젝트의 모듈 품질 보증을 위해 `tests/` 디렉토리에 테스트 프레임워크를 구축했습니다.
-
-#### 테스트 디렉토리 구조
-```
-tests/
-└── ecs-service-test/           # ECS Service 모듈 테스트
-    ├── .terraform/             # Terraform 초기화 파일
-    ├── .terraform.lock.hcl     # Provider 버전 잠금 파일
-    └── main.tf                 # 테스트 설정 파일
-```
-
-### 테스트 방법론
-
-#### 1. 테스트 파일 구성
-각 모듈별 테스트 디렉토리를 생성하고 `main.tf`에 테스트 케이스를 작성합니다.
-
-**테스트 파일 구조:**
-```hcl
-# tests/{module-name}-test/main.tf
-
-# 1. Terraform 및 Provider 설정
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 6.18.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = "ap-northeast-2"
-}
-
-# 2. 모듈 테스트 케이스
-module "test_module" {
-  source = "../../infra/dev/modules/{module-path}"
-
-  # 테스트용 변수 설정
-  # ARN, ID 등은 더미 값 사용 가능
-}
-```
-
-#### 2. 테스트 실행 절차
-
-```bash
-# 1. 테스트 디렉토리 이동
-cd tests/{module-name}-test
-
-# 2. Terraform 초기화 (모듈 다운로드 및 Provider 설치)
-terraform init
-
-# 3. 구문 검증 (HCL 문법 및 설정 유효성 검사)
-terraform validate
-
-# 4. 실행 계획 확인 (리소스 생성 없이 dry-run)
-terraform plan
-```
-
-#### 3. 테스트 성공 기준
-
-**✅ 테스트 통과 조건:**
-1. `terraform validate` → "Success! The configuration is valid."
-2. `terraform plan` → 오류 없이 실행 계획 생성
-3. 예상한 리소스가 계획에 포함됨
-
-**❌ 테스트 실패 사례:**
-- 구문 오류 (Unsupported argument, Unsupported block type)
-- 필수 변수 누락
-- 타입 불일치
-- 모듈 경로 오류
-
-### ECS Service 모듈 테스트 사례
-
-#### 테스트 수행 과정
-
-**1. 초기 테스트 실패**
-```bash
-cd tests/ecs-service-test
-terraform validate
-
-# Error: Unsupported argument
-# on ../../infra/dev/modules/ecs/ecs-service/main.tf line 39
-# An argument named "maximum_percent" is not expected here.
-```
-
-**문제점:** `deployment_configuration` 블록 구조가 AWS Provider의 ECS Service 리소스 스키마와 불일치
-
-**2. 모듈 수정**
-[infra/dev/modules/ecs/ecs-service/main.tf:38](infra/dev/modules/ecs/ecs-service/main.tf#L38)
-
-변경 전:
-```hcl
-deployment_configuration {
-  maximum_percent         = var.deployment_configuration.maximum_percent
-  minimum_healthy_percent = var.deployment_configuration.minimum_healthy_percent
-
-  deployment_circuit_breaker {
-    enable   = var.deployment_configuration.deployment_circuit_breaker.enable
-    rollback = var.deployment_configuration.deployment_circuit_breaker.rollback
-  }
-}
-```
-
-변경 후:
-```hcl
-deployment_controller {
-  type = "ECS"
-}
-
-deployment_circuit_breaker {
-  enable   = var.deployment_configuration.deployment_circuit_breaker.enable
-  rollback = var.deployment_configuration.deployment_circuit_breaker.rollback
-}
-
-deployment_maximum_percent         = var.deployment_configuration.maximum_percent
-deployment_minimum_healthy_percent = var.deployment_configuration.minimum_healthy_percent
-```
-
-**3. 테스트 성공**
-```bash
-terraform validate
-# ✅ Success! The configuration is valid.
-
-terraform plan
-# ✅ Plan: 1 to add, 0 to change, 0 to destroy.
-```
-
-**생성 예정 리소스 확인:**
-```
-# module.aws_ecs_service.aws_ecs_service.this will be created
-+ resource "aws_ecs_service" "this" {
-    + cluster                            = "arn:aws:ecs:ap-northeast-2:123456789012:cluster/test"
-    + deployment_maximum_percent         = 200
-    + deployment_minimum_healthy_percent = 100
-    + desired_count                      = 1
-    + enable_execute_command             = true
-    + launch_type                        = "FARGATE"
-    + platform_version                   = "LATEST"
-
-    + deployment_circuit_breaker {
-        + enable   = true
-        + rollback = true
-    }
-
-    + network_configuration {
-        + assign_public_ip = true
-        + security_groups  = ["sg-xxx"]
-        + subnets          = ["subnet-xxx"]
-    }
-}
-```
-
-### 테스트 결과 요약
-
-#### 테스트 완료 모듈
-1. ✅ **ECS Service 모듈** ([tests/ecs-service-test](tests/ecs-service-test/main.tf))
-   - 모듈 경로: `infra/dev/modules/ecs/ecs-service`
-   - 테스트 상태: 통과
-   - 검증 항목:
-     - ECS Service 리소스 생성
-     - Deployment configuration 설정
-     - Circuit breaker 설정
-     - Network configuration 설정
-     - Launch type FARGATE 설정
-
-#### 테스트 대기 모듈
-- [ ] ECS Cluster 모듈
-- [ ] ECS Task Definition 모듈
-- [ ] ECR 모듈
-- [ ] Security Group 모듈
-- [ ] Target Group 모듈
-- [ ] Common 모듈
-
-### 테스트 모범 사례
-
-#### 1. 모듈 경로 설정
-```hcl
-# ✅ 올바른 경로 (infra/ 하위)
-source = "../../infra/dev/modules/ecs/ecs-service"
-
-# ❌ 잘못된 경로
-source = "../../dev/modules/ecs-service"  # infra/ 누락
-```
-
-#### 2. 더미 값 사용
-테스트 시 실제 AWS 리소스 ARN이 필요하지 않은 경우 더미 값 사용:
-```hcl
-cluster_id          = "arn:aws:ecs:ap-northeast-2:123456789012:cluster/test"
-task_definition_arn = "arn:aws:ecs:ap-northeast-2:123456789012:task-definition/test:1"
-subnets             = ["subnet-xxx"]
-security_groups     = ["sg-xxx"]
-```
-
-#### 3. 필수 변수만 설정
-테스트 시 선택적 변수는 모듈의 기본값 사용:
-```hcl
-module "test" {
-  source = "..."
-
-  # 필수 변수만 설정
-  name                = "test-svc"
-  cluster_id          = "..."
-  task_definition_arn = "..."
-
-  # 선택적 변수는 기본값 사용 (명시 불필요)
-}
-```
-
-#### 4. 반복 테스트
-모듈 수정 후 즉시 테스트 실행하여 회귀 방지:
-```bash
-# 모듈 수정 후
-cd tests/{module-name}-test
-terraform init      # 모듈 업데이트
-terraform validate  # 구문 검증
-terraform plan      # 동작 검증
-```
-
-### 향후 테스트 확장 계획
-
-#### 1. 통합 테스트
-여러 모듈을 조합한 통합 테스트 작성:
-```
-tests/
-└── integration-test/
-    └── ecs-full-stack-test/  # Cluster + Task Definition + Service
-```
-
-#### 2. 자동화 테스트
-CI/CD 파이프라인에 테스트 자동 실행 통합:
-```bash
-#!/bin/bash
-# test-all-modules.sh
-for test_dir in tests/*/; do
-  cd "$test_dir"
-  terraform init -upgrade
-  terraform validate || exit 1
-  terraform plan || exit 1
-  cd -
-done
-```
-
-#### 3. 실제 배포 테스트
-개발 환경에 실제 리소스 배포 후 동작 확인:
-```bash
-# 주의: 실제 AWS 리소스 생성 (비용 발생)
-terraform apply -auto-approve
-# 테스트 후 정리
-terraform destroy -auto-approve
-```
-
-### 테스트 문서화
-
-**중요**: 모든 테스트 결과는 반드시 `tests/TEST-RESULT.md` 파일에 기록해야 합니다.
-
-테스트 결과는 다음 정보를 포함해야 합니다:
-1. **테스트 일시**: 2025-11-04
-2. **테스트 모듈**: ECS Service
-3. **테스트 결과**: 통과/실패
-4. **발견된 이슈**: deployment_configuration 구조 오류
-5. **수정 내용**: deployment_* 속성을 리소스 최상위로 이동
-6. **검증 방법**: terraform validate, terraform plan
-
-자세한 테스트 결과는 [tests/TEST-RESULT.md](tests/TEST-RESULT.md) 참고
-
----
-
-## 2025-11-04: 모듈 구조 개선 - 환경 독립적 모듈 디렉토리
-
-### 작업 배경
-
-기존 구조에서는 `infra/dev/modules/`와 `infra/prod/modules/`로 환경별로 모듈을 관리했습니다. 하지만 모듈은 본질적으로 재사용 가능한 추상화 계층이며, 환경에 독립적이어야 합니다.
-
-### 문제점
-
-1. **DRY 원칙 위반**: 동일한 모듈을 dev/prod에 중복 관리
-2. **유지보수 비효율**: 모듈 수정 시 여러 곳을 변경해야 함
-3. **일관성 문제**: 환경별로 모듈 버전이 달라질 위험
-4. **업계 표준 미준수**: Terraform 모범 사례와 불일치
-
-### 개선 내용
-
-#### 1. 디렉토리 구조 변경
-
-**변경 전:**
-```
-infra/
-├── dev/
-│   ├── modules/          # dev 전용 모듈
-│   ├── resources/
-│   └── projects/
-└── prod/
-    ├── modules/          # prod 전용 모듈 (중복)
-    ├── resources/
-    └── projects/
-```
-
-**변경 후:**
-```
-infra/
-├── modules/              # 공통 모듈 (환경 독립적)
-├── dev/
-│   ├── resources/
-│   └── projects/
-└── prod/
-    ├── resources/
-    └── projects/
-```
-
-#### 2. 모듈 경로 수정
-
-**dev/projects/cms/main.tf - 7개 모듈 경로 업데이트:**
-- `module "common"`: `../../modules/common` → `../../../modules/common`
-- `module "ecr"`: `../../modules/ecr` → `../../../modules/ecr`
-- `module "ecs_security_group"`: `../../modules/security-group` → `../../../modules/security-group`
-- `module "target_group"`: `../../modules/target-group` → `../../../modules/target-group`
-- `module "ecs_cluster"`: `../../modules/ecs/ecs-cluster` → `../../../modules/ecs/ecs-cluster`
-- `module "ecs_task_definition"`: `../../modules/ecs/ecs-task-definition` → `../../../modules/ecs/ecs-task-definition`
-- `module "ecs_service"`: `../../modules/ecs/ecs-service` → `../../../modules/ecs/ecs-service`
-
-#### 3. 테스트 파일 경로 수정
-
-**tests/ecs-service-test/main.tf:**
-- `source = "../../infra/dev/modules/ecs/ecs-service"` → `source = "../../infra/modules/ecs/ecs-service"`
-
-**tests/ecr-test/main.tf:**
-- `source = "../../infra/dev/modules/ecr"` → `source = "../../infra/modules/ecr"`
-
-#### 4. 문서 업데이트
-
-**README.md:**
-- 디렉토리 구조 다이어그램 업데이트
-- 모듈 테스트 예시 경로 수정
-- ECR 테스트 완료 모듈 목록에 추가
-
-**JOB.md:**
-- 모듈 구조 섹션 업데이트
-- 공통 모듈 사용 패턴 예시 수정
-
-### 개선 효과
-
-1. **코드 중복 제거**: 모듈을 한 곳에서만 관리
-2. **유지보수 용이성**: 모듈 수정 시 한 번만 변경
-3. **일관성 보장**: 모든 환경에서 동일한 모듈 사용
-4. **표준 준수**: Terraform 업계 표준 구조 적용
-
-### Terraform 모범 사례 적용
-
-#### 모듈은 환경에 독립적이어야 함
-```hcl
-# ✅ 올바른 사용: 환경별 차이는 변수로 처리
-module "ecr" {
-  source = "../../../modules/ecr"
-  
-  repository_name = var.environment == "prod" ? "prod-app" : "dev-app"
-  scan_on_push    = var.environment == "prod" ? true : false
-}
-
-# ❌ 잘못된 사용: 환경별로 다른 모듈 관리
-# dev/modules/ecr vs prod/modules/ecr
-```
-
-#### 환경별 차이 관리 방법
-1. **variables.tf**: 환경별 변수 정의
-2. **terraform.tfvars**: 환경별 변수 값 설정
-3. **conditional expressions**: 환경에 따른 동적 값 설정
-
-### 향후 적용 사항
-
-1. **prod 환경 구성 시**: `infra/modules/` 재사용
-2. **새로운 환경 추가 시**: 모듈은 그대로 사용, 루트 모듈만 추가
-3. **모듈 버전 관리**: Git 태그 또는 모듈 레지스트리 활용 고려
-
-### 참고: 업계 표준 구조
-
-```
-terraform-project/
-├── modules/           # 재사용 가능한 모듈
-│   ├── networking/
-│   ├── compute/
-│   └── storage/
-├── environments/
-│   ├── dev/          # 개발 환경 루트 모듈
-│   ├── staging/      # 스테이징 환경 루트 모듈
-│   └── prod/         # 운영 환경 루트 모듈
-└── tests/            # 모듈 테스트
-```
-
-이 구조는 HashiCorp 공식 문서 및 주요 Terraform 프로젝트에서 권장하는 표준입니다.
+## ✅ 완료된 작업 (역순)
+
+### 2025-11-04: README.md 및 JOB.md 구조 개선
+- [x] README.md에 "현재 상태" 섹션 추가
+- [x] JOB.md에 "다음 세션 작업" 섹션 추가
+- [x] 구체적인 실행 명령어 및 확인 사항 작성
+
+### 2025-11-04: CMS 배포를 위한 전체 모듈 테스트 완료
+- [x] Common 모듈 테스트 (네이밍, 태그)
+- [x] Security Group 모듈 테스트 (Ingress/Egress 규칙)
+- [x] Target Group 모듈 테스트 (Health check)
+- [x] ECS Cluster 모듈 테스트 (Capacity providers)
+- [x] ECS Task Definition 모듈 테스트 (Container definitions)
+- [x] 테스트 결과 TEST-RESULT.md 업데이트
+
+### 2025-11-04: 모듈 구조 개선 - 환경 독립적 모듈 디렉토리
+- [x] `infra/dev/modules/` → `infra/modules/` 이동
+- [x] dev/projects/cms/main.tf 모듈 경로 수정 (7개)
+- [x] 테스트 파일 모듈 경로 수정 (2개)
+- [x] README.md 및 JOB.md 문서 업데이트
+
+### 2025-11-04: 모듈 테스트 프레임워크 구축
+- [x] `tests/` 디렉토리 생성
+- [x] ECS Service 모듈 테스트
+  - deployment_configuration 구조 오류 발견 및 수정
+  - terraform validate, plan 성공
+- [x] ECR 모듈 테스트 성공
+- [x] TEST-RESULT.md 작성
+
+### 2025-11-04: Phase 2 - CMS 프로젝트 ECS 배포 환경 구축 완료
+- [x] 루트 모듈 관리 규칙 정립
+- [x] 재사용 가능한 모듈 7개 개발
+  - common, ecr, security-group, target-group
+  - ecs-cluster, ecs-task-definition, ecs-service
+- [x] dev/projects/cms 통합 루트 모듈 작성
+- [x] 디렉토리 구조 재편성 (resources/, projects/)
+
+### 2025-11-04: 프로젝트 구조 정리 및 README 개선
+- [x] 디렉토리 구조 실제 구현
+- [x] README.md 문서 개선
+  - 전체 목표 섹션 정리
+  - 단계별 목표 구조화
+  - 디렉토리 구조 상세화
+  - Terraform 모범사례 섹션 확장
+  - 작업 진행 상황 섹션 추가
