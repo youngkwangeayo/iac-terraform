@@ -6,8 +6,13 @@
 
 | 모듈명 | 테스트 상태 | 테스트 일시 | 비고 |
 |--------|-------------|-------------|------|
-| ECS Service | ✅ 통과 | 2025-11-04 | deployment_configuration 구조 수정 후 통과 |
+| Common | ✅ 통과 | 2025-11-04 | 네이밍 및 태그 생성 검증 |
 | ECR | ✅ 통과 | 2025-11-04 | 최초 테스트 통과 |
+| Security Group | ✅ 통과 | 2025-11-04 | Ingress/Egress 규칙 검증 |
+| Target Group | ✅ 통과 | 2025-11-04 | Health check 설정 검증 |
+| ECS Cluster | ✅ 통과 | 2025-11-04 | Capacity providers 설정 검증 |
+| ECS Task Definition | ✅ 통과 | 2025-11-04 | Container definitions 검증 |
+| ECS Service | ✅ 통과 | 2025-11-04 | deployment_configuration 구조 수정 후 통과 |
 
 ---
 
@@ -281,3 +286,440 @@ terraform apply -auto-approve
 # 테스트 후 정리
 terraform destroy -auto-approve
 ```
+
+---
+
+## 3. Common 모듈 테스트
+
+### 테스트 정보
+- **테스트 일시**: 2025-11-04
+- **테스트 모듈**: Common (네이밍 및 태그)
+- **모듈 경로**: `infra/modules/common`
+- **테스트 파일**: [tests/common-test/main.tf](common-test/main.tf)
+
+### 테스트 결과
+✅ **통과** (최초 테스트 통과)
+
+### 테스트 과정
+
+```bash
+cd tests/common-test
+terraform init    # ✅ 성공
+terraform validate # ✅ Success! The configuration is valid.
+terraform plan    # ✅ Outputs 생성 확인
+```
+
+### 검증 항목
+
+#### 1. 기본 네이밍 패턴
+```hcl
+module "common_basic" {
+  environment  = "dev"
+  project_name = "test"
+}
+
+# Output: "dev-test"
+```
+
+#### 2. 전체 네이밍 패턴 (aws_service, component 포함)
+```hcl
+module "common_full" {
+  environment  = "dev"
+  project_name = "cms"
+  aws_service  = "ecs"
+  component    = "api"
+}
+
+# Output: "dev-cms" (기본 형식)
+```
+
+#### 3. 공통 태그 생성
+```hcl
+# 기본 태그
+{
+  Environment = "dev"
+  Project     = "test"
+  ManagedBy   = "Terraform"
+}
+
+# 추가 태그 병합
+{
+  Environment = "dev"
+  Project     = "cms"
+  ManagedBy   = "Terraform"
+  Team        = "platform"
+  Cost        = "shared"
+}
+```
+
+### 테스트 출력
+```
+Changes to Outputs:
+  + basic_name_prefix = "dev-test"
+  + basic_tags        = {
+      + Environment = "dev"
+      + ManagedBy   = "Terraform"
+      + Project     = "test"
+    }
+  + full_name_prefix  = "dev-cms"
+  + full_tags         = {
+      + Cost        = "shared"
+      + Environment = "dev"
+      + ManagedBy   = "Terraform"
+      + Project     = "cms"
+      + Team        = "platform"
+    }
+```
+
+---
+
+## 4. Security Group 모듈 테스트
+
+### 테스트 정보
+- **테스트 일시**: 2025-11-04
+- **테스트 모듈**: Security Group
+- **모듈 경로**: `infra/modules/security-group`
+- **테스트 파일**: [tests/security-group-test/main.tf](security-group-test/main.tf)
+
+### 테스트 결과
+✅ **통과** (최초 테스트 통과)
+
+### 테스트 과정
+
+```bash
+cd tests/security-group-test
+terraform init    # ✅ 성공
+terraform validate # ✅ Success! The configuration is valid.
+terraform plan    # ✅ Plan: 4 to add
+```
+
+### 검증 항목
+
+#### 1. Security Group 리소스 생성
+- ✅ VPC 연결 (vpc_id)
+- ✅ 이름 및 설명 설정
+- ✅ 태그 적용
+
+#### 2. Ingress 규칙 (2개)
+```hcl
+# Rule 1: Security Group 기반
+{
+  from_port       = 3827
+  to_port         = 3827
+  protocol        = "tcp"
+  security_groups = ["sg-alb123"]
+  description     = "Allow traffic from ALB"
+}
+
+# Rule 2: CIDR 기반
+{
+  from_port   = 443
+  to_port     = 443
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/16"]
+  description = "Allow HTTPS from VPC"
+}
+```
+
+#### 3. Egress 규칙 (1개)
+```hcl
+{
+  from_port   = 0
+  to_port     = 0
+  protocol    = "-1"
+  cidr_blocks = ["0.0.0.0/0"]
+  description = "Allow all outbound"
+}
+```
+
+### 생성 예정 리소스
+```
+Plan: 4 to add
+- aws_security_group.this
+- aws_vpc_security_group_ingress_rule.this[0]  # Port 3827 from SG
+- aws_vpc_security_group_ingress_rule.this[1]  # Port 443 from CIDR
+- aws_vpc_security_group_egress_rule.this[0]   # All outbound
+```
+
+---
+
+## 5. Target Group 모듈 테스트
+
+### 테스트 정보
+- **테스트 일시**: 2025-11-04
+- **테스트 모듈**: Target Group
+- **모듈 경로**: `infra/modules/target-group`
+- **테스트 파일**: [tests/target-group-test/main.tf](target-group-test/main.tf)
+
+### 테스트 결과
+✅ **통과** (최초 테스트 통과)
+
+### 테스트 과정
+
+```bash
+cd tests/target-group-test
+terraform init    # ✅ 성공
+terraform validate # ✅ Success! The configuration is valid.
+terraform plan    # ✅ Plan: 1 to add
+```
+
+### 검증 항목
+
+#### 1. Target Group 기본 설정
+- ✅ 포트: 3827
+- ✅ 프로토콜: HTTP
+- ✅ Target Type: ip (Fargate용)
+- ✅ VPC 연결
+- ✅ Deregistration delay: 30초
+
+#### 2. Health Check 설정
+```hcl
+health_check {
+  enabled             = true
+  path                = "/api/ping"
+  port                = "traffic-port"
+  protocol            = "HTTP"
+  healthy_threshold   = 3
+  unhealthy_threshold = 3
+  timeout             = 5
+  interval            = 30
+  matcher             = "200"
+}
+```
+
+#### 3. 태그 적용
+```hcl
+tags = {
+  Environment = "test"
+  Name        = "test-tg"
+  Project     = "cms"
+}
+```
+
+### 생성 예정 리소스
+```
+# module.target_group.aws_lb_target_group.this
+resource "aws_lb_target_group" "this" {
+  name                 = "test-tg"
+  port                 = 3827
+  protocol             = "HTTP"
+  target_type          = "ip"
+  vpc_id               = "vpc-12345678"
+  deregistration_delay = "30"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 3
+    interval            = 30
+    matcher             = "200"
+    path                = "/api/ping"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+    timeout             = 5
+    unhealthy_threshold = 3
+  }
+}
+```
+
+---
+
+## 6. ECS Cluster 모듈 테스트
+
+### 테스트 정보
+- **테스트 일시**: 2025-11-04
+- **테스트 모듈**: ECS Cluster
+- **모듈 경로**: `infra/modules/ecs/ecs-cluster`
+- **테스트 파일**: [tests/ecs-cluster-test/main.tf](ecs-cluster-test/main.tf)
+
+### 테스트 결과
+✅ **통과** (최초 테스트 통과)
+
+### 테스트 과정
+
+```bash
+cd tests/ecs-cluster-test
+terraform init    # ✅ 성공
+terraform validate # ✅ Success! The configuration is valid.
+terraform plan    # ✅ Plan: 2 to add
+```
+
+### 검증 항목
+
+#### 1. ECS Cluster 리소스
+- ✅ Cluster 이름: test-cluster
+- ✅ Container Insights 활성화
+- ✅ 태그 적용
+
+#### 2. Capacity Providers
+```hcl
+capacity_providers = ["FARGATE", "FARGATE_SPOT"]
+
+default_capacity_provider_strategy = [
+  {
+    capacity_provider = "FARGATE"
+    weight            = 1
+    base              = 1
+  }
+]
+```
+
+### 생성 예정 리소스
+```
+Plan: 2 to add
+- aws_ecs_cluster.this
+- aws_ecs_cluster_capacity_providers.this
+
+# Container Insights 설정
+setting {
+  name  = "containerInsights"
+  value = "enabled"
+}
+```
+
+---
+
+## 7. ECS Task Definition 모듈 테스트
+
+### 테스트 정보
+- **테스트 일시**: 2025-11-04
+- **테스트 모듈**: ECS Task Definition
+- **모듈 경로**: `infra/modules/ecs/ecs-task-definition`
+- **테스트 파일**: [tests/ecs-task-definition-test/main.tf](ecs-task-definition-test/main.tf)
+
+### 테스트 결과
+✅ **통과** (최초 테스트 통과)
+
+### 테스트 과정
+
+```bash
+cd tests/ecs-task-definition-test
+terraform init    # ✅ 성공
+terraform validate # ✅ Success! The configuration is valid.
+terraform plan    # ✅ Plan: 1 to add
+```
+
+### 검증 항목
+
+#### 1. Task Definition 기본 설정
+- ✅ Family: test-task
+- ✅ CPU: 512
+- ✅ Memory: 1024
+- ✅ Network Mode: awsvpc
+- ✅ Requires Compatibilities: FARGATE
+- ✅ Task Role ARN 설정
+- ✅ Execution Role ARN 설정
+
+#### 2. Container Definitions
+```json
+[
+  {
+    "name": "test-app",
+    "image": "nginx:latest",
+    "essential": true,
+    "portMappings": [
+      {
+        "containerPort": 80,
+        "hostPort": 80,
+        "protocol": "tcp"
+      }
+    ],
+    "environment": [
+      {
+        "name": "ENVIRONMENT",
+        "value": "test"
+      }
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/ecs/test-task",
+        "awslogs-region": "ap-northeast-2",
+        "awslogs-stream-prefix": "ecs"
+      }
+    }
+  }
+]
+```
+
+#### 3. Runtime Platform
+```hcl
+runtime_platform {
+  cpu_architecture        = "X86_64"
+  operating_system_family = "LINUX"
+}
+```
+
+### 생성 예정 리소스
+```
+# module.ecs_task_definition.aws_ecs_task_definition.this
+resource "aws_ecs_task_definition" "this" {
+  family                   = "test-task"
+  cpu                      = "512"
+  memory                   = "1024"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  task_role_arn            = "arn:aws:iam::123456789012:role/ecsTaskRole"
+  execution_role_arn       = "arn:aws:iam::123456789012:role/ecsTaskExecutionRole"
+  container_definitions    = [...]
+
+  runtime_platform {
+    cpu_architecture        = "X86_64"
+    operating_system_family = "LINUX"
+  }
+}
+```
+
+---
+
+## CMS 프로젝트 배포를 위한 모듈 테스트 완료
+
+### 전체 테스트 결과
+모든 모듈이 성공적으로 테스트를 통과했습니다. CMS 프로젝트 배포에 필요한 7개 모듈이 검증되었습니다.
+
+| 순번 | 모듈명 | 용도 | 테스트 상태 |
+|------|--------|------|-------------|
+| 1 | Common | 네이밍 및 태그 관리 | ✅ 통과 |
+| 2 | ECR | 컨테이너 이미지 저장소 | ✅ 통과 |
+| 3 | Security Group | ECS 보안 그룹 | ✅ 통과 |
+| 4 | Target Group | ALB 타겟 그룹 | ✅ 통과 |
+| 5 | ECS Cluster | ECS 클러스터 | ✅ 통과 |
+| 6 | ECS Task Definition | 태스크 정의 | ✅ 통과 |
+| 7 | ECS Service | ECS 서비스 | ✅ 통과 |
+
+### 다음 단계
+
+CMS 프로젝트 배포를 위한 사전 요구사항:
+
+#### 1. 공통 인프라 배포 (resources/)
+```bash
+# Network State 생성
+cd infra/dev/resources/network
+terraform init
+terraform apply
+
+# ELB State 생성
+cd infra/dev/resources/elb
+terraform init
+terraform apply
+```
+
+#### 2. CMS 프로젝트 배포 (projects/cms/)
+```bash
+cd infra/dev/projects/cms
+terraform init
+terraform plan
+terraform apply
+```
+
+#### 3. 확인 사항
+- [ ] S3 Backend 설정 완료
+- [ ] Network State에 VPC, Subnet 정보 저장
+- [ ] ELB State에 ALB, HTTPS Listener 정보 저장
+- [ ] ECR에 컨테이너 이미지 푸시
+- [ ] IAM Role (ecsTaskRole, ecsTaskExecutionRole) 생성
+
+---
+
+## 테스트 대기 모듈
+
+현재 CMS 프로젝트 배포에 필요한 모든 모듈이 테스트 완료되었습니다. 추가 모듈 개발 시 테스트가 필요합니다.
