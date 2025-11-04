@@ -14,7 +14,7 @@ provider "aws" {
 
 
 module "aws_ecs_service" {
-  source              = "../../infra/dev/modules/ecs/ecs-service"
+  source              = "../../infra/modules/ecs/ecs-service"
   name                = "test-svc"
   cluster_id          = "arn:aws:ecs:ap-northeast-2:123456789012:cluster/test"
   task_definition_arn = "arn:aws:ecs:ap-northeast-2:123456789012:task-definition/test:1"

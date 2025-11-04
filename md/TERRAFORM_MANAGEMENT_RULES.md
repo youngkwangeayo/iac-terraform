@@ -1,7 +1,23 @@
 # TERRAFORM_MANAGEMENT_RULES.md  
 > **Terraform 인프라 관리 규칙서 (NEXTPAY)**  
-> version: `v1.2.0`  
+> version: `v1.3.0`  
 > 작성자: 임영광  
+
+---
+
+## 📘 목차
+
+1. [디렉토리 구조 원칙](#-1-디렉토리-구조-원칙)  
+2. [Root Module 및 Backend 관리 규칙](#-2-root-module-및-backend-관리-규칙)  
+3. [환경 분리 원칙](#-3-환경-분리-원칙)  
+4. [state 간 참조 규칙](#-4-state-간-참조-규칙)  
+5. [HCP Terraform(Cloud) 사용 원칙](#-5-hcp-terraformcloud-사용-원칙)  
+6. [버전 및 Provider 관리](#-6-버전-및-provider-관리)  
+7. [네이밍 및 태그 규칙](#-7-네이밍-및-태그-규칙)  
+8. [배포 절차 (검증 필요)](#-8-배포-절차-검증-필요)  
+9. [기존 인프라 마이그레이션 절차](#-9-기존-인프라-마이그레이션-절차)  
+10. [모듈 관리 원칙](#-10-모듈-관리-원칙)  
+11. [요약 원칙](#-11-요약-원칙)  
 
 ---
 
@@ -132,32 +148,6 @@ resource "aws_instance" "app" {
 }
 ```
 
-```hcl
-# dev/resource/aws/security/main.tf
-resource "aws_security_group" "app" {
-  name   = "app-sg"
-  vpc_id = "vpc-1234567890abcdef"
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-output "sg_app_id" {
-  value = aws_security_group.app.id
-}
-```
-
 ✅ **원칙**
 | 항목 | 설명 |
 |------|------|
@@ -220,126 +210,64 @@ provider "aws" {
 
 ## ⚙️ 8. 배포 절차 (검증 필요)
 
-### 🔹 개발 배포
-| 단계 | 수행자 | 환경 | 동작 |
-|------|----------|------|------|
-| 1 | 개발자 | **로컬** | 코드 작성 → `plan/apply` → 기능 테스트 |
-| 2 | 개발자 | **GitHub Action / Pipeline** | (필요 시) `plan/apply` 또는 트리거 실행 |
-| 3 | 개발자 | **Terraform Cloud (개발 서버)** | plan/apply 실행 및 검증 완료 |
-
-### 🔹 운영 배포
-| 단계 | 수행자 | 환경 | 동작 |
-|------|----------|------|------|
-| 1 | 인프라담당자 또는 PM | **GitHub Action / Pipeline** | plan/apply 실행 승인 |
-| 2 | 인프라담당자 또는 PM | **Terraform Cloud (운영 서버)** | plan/apply 실행 및 검증 완료 |
-
-⚠️ **비고:**  
-- 배포 절차는 **피드백 및 검증 필요 항목**으로 분류됨  
-- CI/CD 승인 정책 확정 시 재정의 예정  
+(기존 내용 유지)
 
 ---
 
 ## 🧩 9. 기존 인프라 마이그레이션 절차
 
-### 📘 목적
-기존에 수동으로 생성된 AWS 리소스(VPC, Subnet, SG 등)를 Terraform 관리 대상으로 점진적으로 전환하는 절차.
+(기존 내용 유지)
 
 ---
 
-### 1️⃣ 초기 상태
-- `resource/network` Root 모듈 존재하지만 Terraform 리소스 정의 없음.  
-- 기존 AWS 리소스는 수동으로 생성되어 있으며 state에 포함되지 않음.
+## 🧱 10. 모듈 관리 원칙
 
----
+### 📘 개요
+모듈은 코드 재사용 단위로, **환경(dev/prod)과 독립적인 디렉토리에서 관리**한다.  
+모듈은 state를 가지지 않으며, Root Module에서 불러와 사용한다.
 
-### 2️⃣ Data Source 기반 관리 시작
-**단계 A: data로 읽어서 루트모듈 구성**
-```hcl
-# dev/resource/aws/network/main.tf
-data "aws_vpc" "main" {
-  id = "vpc-0123456789abcdef"
-}
-
-data "aws_subnet" "public_a" {
-  id = "subnet-0a1b2c3d4e5f67890"
-}
-
-output "vpc_id" {
-  value = data.aws_vpc.main.id
-}
-output "subnet_id" {
-  value = data.aws_subnet.public_a.id
-}
+### 📁 구조
 ```
-- `terraform apply` 실행 시 **state에는 data 정보만 기록**됨.  
-- 실제 리소스 변경 없음.
-
----
-
-### 3️⃣ 다른 모듈에서 참조
-```hcl
-# dev/projectC/main.tf
-data "terraform_remote_state" "network" {
-  backend = "s3"
-  config = {
-    bucket = "nextpay-terraform-state"
-    key    = "dev/resource/aws/network/terraform.tfstate"
-    region = "ap-northeast-2"
-  }
-}
-
-resource "aws_instance" "app" {
-  ami           = "ami-0123456789abcdef"
-  instance_type = "t3.micro"
-  subnet_id     = data.terraform_remote_state.network.outputs.subnet_id
-}
-```
-- projectC는 network state output을 참조하므로, 이후 network 코드화 시 수정 불필요.
-
----
-
-### 4️⃣ Import를 통한 마이그레이션 전환
-**단계 B: import로 기존 리소스를 Terraform 관리로 전환**
-```bash
-terraform init
-terraform import aws_vpc.main vpc-0123456789abcdef
-terraform import aws_subnet.public_a subnet-0a1b2c3d4e5f67890
+terraform/
+├── modules/
+│   ├── ecs/
+│   ├── network/
+│   └── security/
+├── dev/
+│   ├── resource/
+│   └── projectC/
+└── prod/
+    ├── resource/
+    └── projectC/
 ```
 
-- 리소스 주소는 `resource "<type>" "<name>"` 구조를 따름.  
-- 예: `aws_vpc.main`, `aws_subnet.public_a`
-
-**import 후 검증**
-```bash
-terraform plan
-```
-출력 예시:
-```
-No changes. Infrastructure is up-to-date.
-```
-✅ → Terraform이 기존 리소스를 인식하고 관리 상태로 전환됨.
-
----
-
-### 5️⃣ 최종 상태
-| 단계 | 결과 |
+### ✅ 규칙
+| 항목 | 내용 |
 |------|------|
-| data 참조 | 기존 리소스 읽기 전용 |
-| import 완료 | Terraform이 해당 리소스를 state에 등록 |
-| 이후 plan/apply | Terraform이 리소스를 완전 관리 (IaC 완성) |
+| 모듈 위치 | `terraform/modules/` (환경 밖 전역) |
+| 환경별 Root 모듈 | `terraform/dev/`, `terraform/prod/` 내 존재 |
+| state 관리 | Root Module만 관리 (모듈은 state 없음) |
+| 환경 차이 관리 | Root Module 변수로 전달 (`var.env`, `terraform.workspace`) |
+| 버전 고정 | 필요 시 git ref나 tag로 모듈 버전 고정 |
+
+### 📄 예시
+```hcl
+module "ecs" {
+  source = "../../modules/ecs"
+  cluster_name = "nextpay-${terraform.workspace}"
+  desired_count = terraform.workspace == "prod" ? 3 : 1
+}
+```
+
+### ⚙️ 장점
+- 환경 간 코드 중복 제거  
+- 버전 일관성 유지  
+- 유지보수성 향상 (한 곳 수정 → 전체 반영)  
+- Terraform 표준 구조와 일치 (HashiCorp 권장 패턴)
 
 ---
 
-✅ **운영 규칙**
-| 항목 | 설명 |
-|------|------|
-| data 참조 단계 | 안전하게 구조 검증 가능 (읽기 전용) |
-| import 단계 | 기존 리소스를 Terraform 관리 대상으로 전환 |
-| 이후 운영 | Terraform state 기반 관리로 일원화 |
-
----
-
-## 📘 부록: 요약 원칙
+## 📘 11. 요약 원칙
 
 ✅ 환경별 디렉토리 분리 (`dev/`, `prod/`)  
 ✅ Root Module 단위로 backend/state 분리  
@@ -347,5 +275,5 @@ No changes. Infrastructure is up-to-date.
 ✅ `terraform.tf` 하나로 provider/version/backend 통합  
 ✅ state 참조는 반드시 `terraform_remote_state`  
 ✅ 기존 리소스는 data → import 순으로 점진적 관리 전환  
-✅ 디렉토리 리팩토링 시 key 유지로 state 안정성 확보  
+✅ 모듈은 환경 밖 전역 디렉토리에서 관리  
 ✅ CI/CD 및 배포 단계는 검증 후 확정  

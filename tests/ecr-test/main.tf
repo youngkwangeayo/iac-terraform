@@ -12,7 +12,7 @@ provider "aws" {
 }
 
 module "aws_ecr" {
-  source = "../../infra/dev/modules/ecr"
+  source = "../../infra/modules/ecr"
 
   repository_name      = "test-ecr-repo"
   image_tag_mutability = "MUTABLE"

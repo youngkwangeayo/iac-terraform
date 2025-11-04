@@ -88,17 +88,17 @@ tf-aws-module/
 │   └── autoscal-dev.json       # Auto Scaling 설정
 │
 ├── infra/                      # 인프라 코드 루트
+│   ├── modules/                # 재사용 가능한 Terraform 모듈 (환경 독립적)
+│   │   ├── common/             # 공통 네이밍 및 태그 모듈
+│   │   ├── ecr/                # ECR 모듈
+│   │   ├── security-group/     # Security Group 모듈
+│   │   ├── target-group/       # Target Group 모듈
+│   │   └── ecs/                # ECS 관련 모듈
+│   │       ├── ecs-cluster/            # ECS Cluster 모듈
+│   │       ├── ecs-task-definition/    # ECS Task Definition 모듈
+│   │       └── ecs-service/            # ECS Service 모듈
+│   │
 │   ├── dev/                    # 개발 환경
-│   │   ├── modules/            # 재사용 가능한 Terraform 모듈
-│   │   │   ├── common/         # 공통 네이밍 및 태그 모듈
-│   │   │   ├── ecr/            # ECR 모듈
-│   │   │   ├── security-group/ # Security Group 모듈
-│   │   │   ├── target-group/   # Target Group 모듈
-│   │   │   └── ecs/            # ECS 관련 모듈
-│   │   │       ├── ecs-cluster/        # ECS Cluster 모듈
-│   │   │       ├── ecs-task-definition/# ECS Task Definition 모듈
-│   │   │       └── ecs-service/        # ECS Service 모듈
-│   │   │
 │   │   ├── resources/          # 공통 인프라 리소스 (인프라팀 관리)
 │   │   │   ├── network/        # 네트워크 루트 모듈
 │   │   │   │   ├── terraform.tf    # Terraform 버전 및 Provider 설정
@@ -123,12 +123,13 @@ tf-aws-module/
 │   │           └── outputs.tf
 │   │
 │   └── prod/                   # 운영 환경 (dev와 동일한 구조)
-│       ├── modules/
 │       ├── resources/
 │       └── projects/
 │
 └── tests/                      # 모듈 테스트 디렉토리
-    └── ecs-service-test/       # ECS Service 모듈 테스트
+    ├── ecs-service-test/       # ECS Service 모듈 테스트
+    │   └── main.tf
+    └── ecr-test/               # ECR 모듈 테스트
         └── main.tf
 ```
 
@@ -173,7 +174,7 @@ provider "aws" {
 }
 
 module "test_module" {
-  source = "../../infra/dev/modules/{module-path}"
+  source = "../../infra/modules/{module-path}"
   # 테스트용 변수 설정
 }
 ```

@@ -27,7 +27,7 @@ data "terraform_remote_state" "elb" {
 # ============================================================================
 
 module "common" {
-  source = "../../modules/common"
+  source = "../../../modules/common"
 
   environment  = var.environment
   project_name = var.project_name
@@ -44,7 +44,7 @@ locals {
 # ============================================================================
 
 module "ecr" {
-  source = "../../modules/ecr"
+  source = "../../../modules/ecr"
 
   repository_name      = local.name_prefix
   image_tag_mutability = "MUTABLE"
@@ -89,7 +89,7 @@ module "ecr" {
 # ============================================================================
 
 module "ecs_security_group" {
-  source = "../../modules/security-group"
+  source = "../../../modules/security-group"
 
   name        = "${local.name_prefix}-ecs"
   description = "Security group for CMS ECS tasks"
@@ -123,7 +123,7 @@ module "ecs_security_group" {
 # ============================================================================
 
 module "target_group" {
-  source = "../../modules/target-group"
+  source = "../../../modules/target-group"
 
   name        = "${local.name_prefix}-tg"
   port        = var.container_port
@@ -173,7 +173,7 @@ resource "aws_lb_listener_rule" "https" {
 # ============================================================================
 
 module "ecs_cluster" {
-  source = "../../modules/ecs/ecs-cluster"
+  source = "../../../modules/ecs/ecs-cluster"
 
   cluster_name        = "${local.name_prefix}-cluster"
   capacity_providers  = ["FARGATE", "FARGATE_SPOT"]
@@ -198,7 +198,7 @@ resource "aws_cloudwatch_log_group" "ecs" {
 # ============================================================================
 
 module "ecs_task_definition" {
-  source = "../../modules/ecs/ecs-task-definition"
+  source = "../../../modules/ecs/ecs-task-definition"
 
   family                   = "${local.name_prefix}-task"
   cpu                      = var.task_cpu
@@ -272,7 +272,7 @@ module "ecs_task_definition" {
 # ============================================================================
 
 module "ecs_service" {
-  source = "../../modules/ecs/ecs-service"
+  source = "../../../modules/ecs/ecs-service"
 
   name                = "${local.name_prefix}-service"
   cluster_id          = module.ecs_cluster.cluster_arn

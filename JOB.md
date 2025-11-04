@@ -126,9 +126,9 @@ tf-aws-module/
 
 ### 필요한 모듈 및 루트 모듈 구조
 
-#### 1. 재사용 가능한 모듈 (`infra/dev/modules/`)
+#### 1. 재사용 가능한 모듈 (`infra/modules/` - 환경 독립적)
 ```
-infra/dev/modules/
+infra/modules/
 ├── common/                     # 공통 네이밍 및 태그 모듈
 │   ├── main.tf
 │   ├── variables.tf
@@ -434,8 +434,8 @@ variable "execution_role_arn" {
 
 #### 완성된 디렉토리 구조
 ```
-infra/dev/
-├── modules/
+infra/
+├── modules/                    # 재사용 가능한 모듈 (환경 독립적)
 │   ├── common/                 # 공통 네이밍 및 태그 (신규)
 │   ├── ecr/
 │   ├── security-group/
@@ -445,28 +445,29 @@ infra/dev/
 │       ├── ecs-task-definition/
 │       └── ecs-service/
 │
-├── resources/                  # 공통 인프라 (인프라팀 관리)
-│   ├── network/
-│   │   ├── terraform.tf
-│   │   ├── backend.tf         # State: dev/resources/network/terraform.tfstate
-│   │   ├── main.tf            # data source로 VPC, Subnet 참조
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   │
-│   └── elb/
-│       ├── terraform.tf
-│       ├── backend.tf         # State: dev/resources/elb/terraform.tfstate
-│       ├── main.tf            # data source로 ALB 참조
-│       ├── variables.tf
-│       └── outputs.tf
-│
-└── projects/                  # 프로젝트별 전용 리소스
-    └── cms/
-        ├── terraform.tf
-        ├── backend.tf         # State: dev/projects/cms/terraform.tfstate
-        ├── main.tf            # ECR, SG, TG, ECS 전체 스택
-        ├── variables.tf
-        └── outputs.tf
+└── dev/
+    ├── resources/              # 공통 인프라 (인프라팀 관리)
+    │   ├── network/
+    │   │   ├── terraform.tf
+    │   │   ├── backend.tf     # State: dev/resources/network/terraform.tfstate
+    │   │   ├── main.tf        # data source로 VPC, Subnet 참조
+    │   │   ├── variables.tf
+    │   │   └── outputs.tf
+    │   │
+    │   └── elb/
+    │       ├── terraform.tf
+    │       ├── backend.tf     # State: dev/resources/elb/terraform.tfstate
+    │       ├── main.tf        # data source로 ALB 참조
+    │       ├── variables.tf
+    │       └── outputs.tf
+    │
+    └── projects/              # 프로젝트별 전용 리소스
+        └── cms/
+            ├── terraform.tf
+            ├── backend.tf     # State: dev/projects/cms/terraform.tfstate
+            ├── main.tf        # ECR, SG, TG, ECS 전체 스택
+            ├── variables.tf
+            └── outputs.tf
 ```
 
 #### 핵심 설계 원칙 적용
@@ -511,8 +512,9 @@ terraform apply
 
 #### 3. 공통 모듈 사용 패턴
 ```hcl
+# dev/projects/{project-name}/main.tf
 module "common" {
-  source       = "../../modules/common"
+  source       = "../../../modules/common"
   environment  = var.environment
   project_name = var.project_name
 }
@@ -524,7 +526,7 @@ locals {
 
 # 리소스 생성 시
 module "ecr" {
-  source          = "../../modules/ecr"
+  source          = "../../../modules/ecr"
   repository_name = local.name_prefix
   tags            = local.common_tags
 }
@@ -838,3 +840,128 @@ terraform destroy -auto-approve
 6. **검증 방법**: terraform validate, terraform plan
 
 자세한 테스트 결과는 [tests/TEST-RESULT.md](tests/TEST-RESULT.md) 참고
+
+---
+
+## 2025-11-04: 모듈 구조 개선 - 환경 독립적 모듈 디렉토리
+
+### 작업 배경
+
+기존 구조에서는 `infra/dev/modules/`와 `infra/prod/modules/`로 환경별로 모듈을 관리했습니다. 하지만 모듈은 본질적으로 재사용 가능한 추상화 계층이며, 환경에 독립적이어야 합니다.
+
+### 문제점
+
+1. **DRY 원칙 위반**: 동일한 모듈을 dev/prod에 중복 관리
+2. **유지보수 비효율**: 모듈 수정 시 여러 곳을 변경해야 함
+3. **일관성 문제**: 환경별로 모듈 버전이 달라질 위험
+4. **업계 표준 미준수**: Terraform 모범 사례와 불일치
+
+### 개선 내용
+
+#### 1. 디렉토리 구조 변경
+
+**변경 전:**
+```
+infra/
+├── dev/
+│   ├── modules/          # dev 전용 모듈
+│   ├── resources/
+│   └── projects/
+└── prod/
+    ├── modules/          # prod 전용 모듈 (중복)
+    ├── resources/
+    └── projects/
+```
+
+**변경 후:**
+```
+infra/
+├── modules/              # 공통 모듈 (환경 독립적)
+├── dev/
+│   ├── resources/
+│   └── projects/
+└── prod/
+    ├── resources/
+    └── projects/
+```
+
+#### 2. 모듈 경로 수정
+
+**dev/projects/cms/main.tf - 7개 모듈 경로 업데이트:**
+- `module "common"`: `../../modules/common` → `../../../modules/common`
+- `module "ecr"`: `../../modules/ecr` → `../../../modules/ecr`
+- `module "ecs_security_group"`: `../../modules/security-group` → `../../../modules/security-group`
+- `module "target_group"`: `../../modules/target-group` → `../../../modules/target-group`
+- `module "ecs_cluster"`: `../../modules/ecs/ecs-cluster` → `../../../modules/ecs/ecs-cluster`
+- `module "ecs_task_definition"`: `../../modules/ecs/ecs-task-definition` → `../../../modules/ecs/ecs-task-definition`
+- `module "ecs_service"`: `../../modules/ecs/ecs-service` → `../../../modules/ecs/ecs-service`
+
+#### 3. 테스트 파일 경로 수정
+
+**tests/ecs-service-test/main.tf:**
+- `source = "../../infra/dev/modules/ecs/ecs-service"` → `source = "../../infra/modules/ecs/ecs-service"`
+
+**tests/ecr-test/main.tf:**
+- `source = "../../infra/dev/modules/ecr"` → `source = "../../infra/modules/ecr"`
+
+#### 4. 문서 업데이트
+
+**README.md:**
+- 디렉토리 구조 다이어그램 업데이트
+- 모듈 테스트 예시 경로 수정
+- ECR 테스트 완료 모듈 목록에 추가
+
+**JOB.md:**
+- 모듈 구조 섹션 업데이트
+- 공통 모듈 사용 패턴 예시 수정
+
+### 개선 효과
+
+1. **코드 중복 제거**: 모듈을 한 곳에서만 관리
+2. **유지보수 용이성**: 모듈 수정 시 한 번만 변경
+3. **일관성 보장**: 모든 환경에서 동일한 모듈 사용
+4. **표준 준수**: Terraform 업계 표준 구조 적용
+
+### Terraform 모범 사례 적용
+
+#### 모듈은 환경에 독립적이어야 함
+```hcl
+# ✅ 올바른 사용: 환경별 차이는 변수로 처리
+module "ecr" {
+  source = "../../../modules/ecr"
+  
+  repository_name = var.environment == "prod" ? "prod-app" : "dev-app"
+  scan_on_push    = var.environment == "prod" ? true : false
+}
+
+# ❌ 잘못된 사용: 환경별로 다른 모듈 관리
+# dev/modules/ecr vs prod/modules/ecr
+```
+
+#### 환경별 차이 관리 방법
+1. **variables.tf**: 환경별 변수 정의
+2. **terraform.tfvars**: 환경별 변수 값 설정
+3. **conditional expressions**: 환경에 따른 동적 값 설정
+
+### 향후 적용 사항
+
+1. **prod 환경 구성 시**: `infra/modules/` 재사용
+2. **새로운 환경 추가 시**: 모듈은 그대로 사용, 루트 모듈만 추가
+3. **모듈 버전 관리**: Git 태그 또는 모듈 레지스트리 활용 고려
+
+### 참고: 업계 표준 구조
+
+```
+terraform-project/
+├── modules/           # 재사용 가능한 모듈
+│   ├── networking/
+│   ├── compute/
+│   └── storage/
+├── environments/
+│   ├── dev/          # 개발 환경 루트 모듈
+│   ├── staging/      # 스테이징 환경 루트 모듈
+│   └── prod/         # 운영 환경 루트 모듈
+└── tests/            # 모듈 테스트
+```
+
+이 구조는 HashiCorp 공식 문서 및 주요 Terraform 프로젝트에서 권장하는 표준입니다.
