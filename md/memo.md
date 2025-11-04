@@ -202,7 +202,44 @@ PROD/
             └── terraform.tfstate       
 
 
+------------------------------
+예 2-2
 
+infra/                  
+├── aws-def/                    # 실제 AWS describe로 생성 파일 (ecs구성시 참고)                  
+│   ├── cluster-dev.json                    
+│   ├── taskdef-dev.json                    
+│   ├── service-dev.json                    
+│   └── autoscal-dev.json               
+│           
+│DEV/           
+├── modules /                             
+│   ├── network/              
+│   │   └── main.tf                  
+│   └── EC2/                
+│       └── main.tf                  
+├── Network /  (Root 모듈 )        
+│       ├── main.tf                 
+│       └── terraform.tfstate         
+├── Computing/  (Root 모듈 )        
+│       ├── main.tf                 
+│       └── terraform.tfstate          
+├── Project C/  (Root 모듈 )        
+│       ├── main.tf                 
+│       └── terraform.tfstate   (DEV-Network.tfstae, DEV-Computing.tfstae 참조)         
+PROD/       
+├── Root modules A/ (NETWORK)                           
+│   ├── main.tf                 
+│   └── terraform.tfstate               
+├── Root modules B/    (EC2)                        
+│   ├── main.tf                 
+│   └── terraform.tfstate           
+└── Project C/  (Root 모듈 )        
+        ├── main.tf                 
+        └── terraform.tfstate     (PROD-network.tfstae, PROD-EC2.tfstae 참조)      
+
+
+------------------------------
 
 다른기업들 HCP Terraform 사용 여부 보기. 자격요건
 
