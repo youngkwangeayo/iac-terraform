@@ -217,3 +217,21 @@ TODO WORKING
 모듈 디테일화, network 안에 vpc,subnet,scuritygroup..
 data resouce 용
 dev, prod 공통으로 사용되는 코드는 오버라이드 적용
+
+-------
+
+지금 구조(DEV/network, DEV/computing, DEV/projectC)에서 ECR(특정리소스가)을 별도 Root 모듈로 만들지, 아니면 projectC 루트 모듈 안에 포함시킬지를 결정할 때는, **“ECR의 수명주기(생성·삭제 주체)”**와 **“재사용 범위”**로 판단하면 됩니다.
+
+즉, ECR(특정리소스가)이 “공유 인프라”냐, “특정 앱 전용 자원”이냐로 갈라집니다.
+
+- ECR이 Project C 전용 (app마다 따로 관리) 프로젝트에포함
+- ECR이 공통 이미지 레지스트리로 쓰이거나, 운영팀이 따로 관리
+
+
+수명주기(생성·삭제 주체), “재사용 범위” 로 루트모듈 또는 특정앱에 리소스 포함으로 관리.
+특정 앱 전용 자원 특정 프로젝트 삭제시 같이삭제 필요 등 예 : 프로젝트 C 전용 ECR 프로젝트 C 리소스로 추가.
+만약 공통으로쓰던가 인프라팀에서 관리하는ECR, EC2, network 등 은 resouce 디렉토리에 두기. 예 : network, 범용성 시큐리티그룹
+
+
+지금은 resource/ecr, resource/network 로 두고 백앤드 관리한다음에 나중에 특정벤더환경이 추가되면 resource/aws/ecr 이렇게 구조를 바꾸기 (마이그레이션)
+-------

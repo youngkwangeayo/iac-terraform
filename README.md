@@ -30,6 +30,53 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 - `ecs-prod-payment-web`
 - `rds-dev-myapp`
 
+## 루트 모듈 관리 규칙
+
+### 리소스 분류 기준
+리소스의 **수명주기(생성·삭제 주체)**와 **재사용 범위**를 기준으로 루트 모듈을 구성합니다.
+
+#### 1. 공통 인프라 리소스 (`resources/` 디렉토리)
+- **관리 주체**: 인프라팀
+- **수명주기**: 프로젝트와 독립적으로 관리
+- **재사용 범위**: 여러 프로젝트에서 공통으로 사용
+- **예시**: Network, 범용 Security Group, 공유 ECR, 공유 EC2 등
+- **위치**: `dev/resources/network/`, `dev/resources/elb/`
+
+#### 2. 프로젝트 전용 리소스 (`projects/{project-name}/` 디렉토리)
+- **관리 주체**: 프로젝트 담당자
+- **수명주기**: 프로젝트와 함께 생성/삭제
+- **재사용 범위**: 해당 프로젝트 전용
+- **예시**: 프로젝트 전용 ECR, ECS 클러스터, 프로젝트별 Security Group
+- **위치**: `dev/projects/cms/` (cms 프로젝트 전용 리소스 포함)
+
+#### 3. 향후 멀티 클라우드 대비
+현재는 `resources/{resource-type}` 구조를 사용하며, 향후 다른 클라우드 벤더 추가 시 `resources/aws/{resource-type}` 형태로 마이그레이션 예정
+
+### 적용 예시
+
+```
+# 현재 구조
+dev/
+├── resources/              # 공통 인프라 리소스 (인프라팀 관리)
+│   ├── network/           # 공통 네트워크 (VPC, Subnet 참조)
+│   └── elb/               # 공통 로드밸런서 참조
+│
+└── projects/              # 프로젝트별 전용 리소스
+    └── cms/               # CMS 프로젝트
+        ├── ecr/           # CMS 전용 ECR (프로젝트와 생명주기 동일)
+        ├── cluster/       # CMS 전용 ECS Cluster
+        └── service/       # CMS ECS Service
+
+# 향후 멀티 클라우드 구조 (마이그레이션)
+dev/
+├── resources/
+│   ├── aws/               # AWS 리소스
+│   │   ├── network/
+│   │   └── elb/
+│   └── gcp/               # GCP 리소스
+│       └── network/
+```
+
 ## 디렉토리 구조
 
 ```
@@ -42,45 +89,39 @@ tf-aws-module/
 │
 ├── dev/                        # 개발 환경
 │   ├── modules/                # 재사용 가능한 Terraform 모듈
-│   │   ├── network/            # 네트워크 모듈 (VPC, Subnet, Security Group)
-│   │   │   ├── main.tf
+│   │   ├── ecr/                # ECR 모듈
+│   │   ├── security-group/     # Security Group 모듈
+│   │   ├── target-group/       # Target Group 모듈
+│   │   ├── ecs-cluster/        # ECS Cluster 모듈
+│   │   ├── ecs-task-definition/# ECS Task Definition 모듈
+│   │   └── ecs-service/        # ECS Service 모듈
+│   │
+│   ├── resources/              # 공통 인프라 리소스 (인프라팀 관리)
+│   │   ├── network/            # 네트워크 루트 모듈
+│   │   │   ├── terraform.tf    # Terraform 버전 및 Provider 설정
+│   │   │   ├── backend.tf      # S3 backend 설정
+│   │   │   ├── main.tf         # data source로 기존 VPC 등을 읽어 State 관리
 │   │   │   ├── variables.tf
 │   │   │   └── outputs.tf
-│   │   ├── ec2/                # EC2 모듈
-│   │   │   ├── main.tf
-│   │   │   ├── variables.tf
-│   │   │   └── outputs.tf
-│   │   └── ecs/                # ECS 모듈
-│   │       ├── main.tf
+│   │   │
+│   │   └── elb/                # ELB 루트 모듈
+│   │       ├── terraform.tf
+│   │       ├── backend.tf
+│   │       ├── main.tf         # 기존 ALB 참조 및 Target Group 생성
 │   │       ├── variables.tf
 │   │       └── outputs.tf
 │   │
-│   ├── network/                # 네트워크 루트 모듈
-│   │   ├── terraform.tf        # Terraform 버전 및 Provider 설정
-│   │   ├── backend.tf          # S3 backend 설정
-│   │   ├── main.tf             # data source로 기존 VPC 등을 읽어 State 관리
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   │
-│   ├── computing/              # 컴퓨팅 루트 모듈
-│   │   ├── terraform.tf        # Terraform 버전 및 Provider 설정
-│   │   ├── backend.tf          # S3 backend 설정
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   │
-│   └── projects/               # 실제 프로젝트 배포 루트 모듈
-│       └── project-example/
+│   └── projects/               # 프로젝트별 전용 리소스
+│       └── cms/                # CMS 프로젝트
 │           ├── terraform.tf    # Terraform 버전 및 Provider 설정
 │           ├── backend.tf      # S3 backend 설정
-│           ├── main.tf         # network, computing State 참조
+│           ├── main.tf         # ECR, ECS Cluster, Service 등 모든 리소스 포함
 │           ├── variables.tf
 │           └── outputs.tf
 │
 └── prod/                       # 운영 환경 (dev와 동일한 구조)
     ├── modules/
-    ├── network/
-    ├── computing/
+    ├── resources/
     └── projects/
 ```
 
