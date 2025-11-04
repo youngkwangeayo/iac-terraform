@@ -159,7 +159,7 @@ CI/CD 에서
 예 2   오버라이드 적극활용.
 
 DEV/
-├── Root modules A/ (NETWORK)           오버라이드 적극활용.          
+├── Root modules A/ (NETWORK)           오버라이드 활용.          
 │   ├── main.tf            
 │   └── terraform.tfstate        
 ├── Root modules B/    (EC2)                 
@@ -207,3 +207,13 @@ PROD/
 다른기업들 HCP Terraform 사용 여부 보기. 자격요건
 
 테스트프레임워크, 코드, 명령 구성
+
+
+
+------
+
+TODO WORKING
+
+모듈 디테일화, network 안에 vpc,subnet,scuritygroup..
+data resouce 용
+dev, prod 공통으로 사용되는 코드는 오버라이드 적용

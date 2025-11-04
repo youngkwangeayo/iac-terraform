@@ -17,47 +17,34 @@ AWS ECS 한세트 베포해보기
 ## 디렉토리 구조
 
 ```
-infra/          
-├── aws-def/                    # 실제 AWS describe로 생성된 참고 파일          
-│   ├── cluster-dev.json            
-│   ├── taskdef-dev.json            
-│   ├── service-dev.json            
-│   └── autoscal-dev.json           
+infra/                  
+├── aws-def/                    # 실제 AWS describe로 생성 파일 (ecs구성시 참고)                  
+│   ├── cluster-dev.json                    
+│   ├── taskdef-dev.json                    
+│   ├── service-dev.json                    
+│   └── autoscal-dev.json               
 │           
-├── modules/                     # 재사용 가능한 구성 단위 (모듈)           
-│   ├── ec2/            
-│   │   ├── main.tf         
-│   │   ├── variables.tf            
-│   │   └── outputs.tf          
-│   ├── ecs/            
-│   │   ├── ecs-cluster/            
-│   │   ├── ecs-task/           
-│   │   ├── ecs-autoscaling/            
-│   │   └── ecs-service/            
-│   ├── s3/         
-│   ├── elb/            
-│   └── route53/            
-│           
-├── solutions/                   # 특정 서비스/프로젝트(솔루션) 단위                          
-│   ├── solution1/                  
-│   ├── solution2/                  
-│   └── data-platform/           # 예: 데이터 수집 파이프라인
-│           
-├── envs/                        # 환경별 배포 단위         
-│   ├── prod/           
-│   │   ├── main.tf         
-│   │   ├── variables.tf            
-│   │   ├── terraform.tfvars            
-│   │   └── backend.hcl         
-│   ├── stage/          
-│   └── dev/            
-│           
-├── terraform.tf         # Terraform & Provider 버전 고정        
-├── providers.tf        # Provider 공통 설정 (AWS, tags 등)     
-├── variables.tf        # 모든 솔루션/환경이 공통으로 쓰는 변수     
-├── outputs.tf          # 공통 출력 정의 (선택)     
-└── backend-common.hcl  # 공통 백엔드 설정 (선택)       
-
+│DEV/           
+├── modules /  (Root 모듈 )                           
+│   ├── network/              
+│   │   ├── main.tf                  
+│   │   └── terraform.tfstate       
+│   └── EC2/  (Root 모듈 )              
+│       ├── main.tf                  
+│       └── terraform.tfstate   
+├── Project C/  (Root 모듈 )        
+│       ├── main.tf                 
+│       └── terraform.tfstate    (DEV-network.tfstae, DEV-EC2.tfstae 참조)      
+PROD/       
+├── Root modules A/ (NETWORK)                           
+│   ├── main.tf                 
+│   └── terraform.tfstate               
+├── Root modules B/    (EC2)                        
+│   ├── main.tf                 
+│   └── terraform.tfstate           
+└── Project C/  (Root 모듈 )        
+        ├── main.tf                 
+        └── terraform.tfstate     (PROD-network.tfstae, PROD-EC2.tfstae 참조)           
 ```
 
 ## Terraform 모범사례
