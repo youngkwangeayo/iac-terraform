@@ -35,15 +35,17 @@ resource "aws_ecs_service" "this" {
     }
   }
 
-  deployment_configuration {
-    maximum_percent         = var.deployment_configuration.maximum_percent
-    minimum_healthy_percent = var.deployment_configuration.minimum_healthy_percent
-
-    deployment_circuit_breaker {
-      enable   = var.deployment_configuration.deployment_circuit_breaker.enable
-      rollback = var.deployment_configuration.deployment_circuit_breaker.rollback
-    }
+  deployment_controller {
+    type = "ECS"
   }
+
+  deployment_circuit_breaker {
+    enable   = var.deployment_configuration.deployment_circuit_breaker.enable
+    rollback = var.deployment_configuration.deployment_circuit_breaker.rollback
+  }
+
+  deployment_maximum_percent         = var.deployment_configuration.maximum_percent
+  deployment_minimum_healthy_percent = var.deployment_configuration.minimum_healthy_percent
 
   tags = var.tags
 

@@ -87,42 +87,49 @@ tf-aws-module/
 │   ├── service-dev.json        # ECS 서비스 정의
 │   └── autoscal-dev.json       # Auto Scaling 설정
 │
-├── dev/                        # 개발 환경
-│   ├── modules/                # 재사용 가능한 Terraform 모듈
-│   │   ├── ecr/                # ECR 모듈
-│   │   ├── security-group/     # Security Group 모듈
-│   │   ├── target-group/       # Target Group 모듈
-│   │   ├── ecs-cluster/        # ECS Cluster 모듈
-│   │   ├── ecs-task-definition/# ECS Task Definition 모듈
-│   │   └── ecs-service/        # ECS Service 모듈
-│   │
-│   ├── resources/              # 공통 인프라 리소스 (인프라팀 관리)
-│   │   ├── network/            # 네트워크 루트 모듈
-│   │   │   ├── terraform.tf    # Terraform 버전 및 Provider 설정
-│   │   │   ├── backend.tf      # S3 backend 설정
-│   │   │   ├── main.tf         # data source로 기존 VPC 등을 읽어 State 관리
-│   │   │   ├── variables.tf
-│   │   │   └── outputs.tf
+├── infra/                      # 인프라 코드 루트
+│   ├── dev/                    # 개발 환경
+│   │   ├── modules/            # 재사용 가능한 Terraform 모듈
+│   │   │   ├── common/         # 공통 네이밍 및 태그 모듈
+│   │   │   ├── ecr/            # ECR 모듈
+│   │   │   ├── security-group/ # Security Group 모듈
+│   │   │   ├── target-group/   # Target Group 모듈
+│   │   │   └── ecs/            # ECS 관련 모듈
+│   │   │       ├── ecs-cluster/        # ECS Cluster 모듈
+│   │   │       ├── ecs-task-definition/# ECS Task Definition 모듈
+│   │   │       └── ecs-service/        # ECS Service 모듈
 │   │   │
-│   │   └── elb/                # ELB 루트 모듈
-│   │       ├── terraform.tf
-│   │       ├── backend.tf
-│   │       ├── main.tf         # 기존 ALB 참조 및 Target Group 생성
-│   │       ├── variables.tf
-│   │       └── outputs.tf
+│   │   ├── resources/          # 공통 인프라 리소스 (인프라팀 관리)
+│   │   │   ├── network/        # 네트워크 루트 모듈
+│   │   │   │   ├── terraform.tf    # Terraform 버전 및 Provider 설정
+│   │   │   │   ├── backend.tf      # S3 backend 설정
+│   │   │   │   ├── main.tf         # data source로 기존 VPC 등을 읽어 State 관리
+│   │   │   │   ├── variables.tf
+│   │   │   │   └── outputs.tf
+│   │   │   │
+│   │   │   └── elb/            # ELB 루트 모듈
+│   │   │       ├── terraform.tf
+│   │   │       ├── backend.tf
+│   │   │       ├── main.tf     # 기존 ALB 참조 및 Target Group 생성
+│   │   │       ├── variables.tf
+│   │   │       └── outputs.tf
+│   │   │
+│   │   └── projects/           # 프로젝트별 전용 리소스
+│   │       └── cms/            # CMS 프로젝트
+│   │           ├── terraform.tf    # Terraform 버전 및 Provider 설정
+│   │           ├── backend.tf      # S3 backend 설정
+│   │           ├── main.tf         # ECR, ECS Cluster, Service 등 모든 리소스 포함
+│   │           ├── variables.tf
+│   │           └── outputs.tf
 │   │
-│   └── projects/               # 프로젝트별 전용 리소스
-│       └── cms/                # CMS 프로젝트
-│           ├── terraform.tf    # Terraform 버전 및 Provider 설정
-│           ├── backend.tf      # S3 backend 설정
-│           ├── main.tf         # ECR, ECS Cluster, Service 등 모든 리소스 포함
-│           ├── variables.tf
-│           └── outputs.tf
+│   └── prod/                   # 운영 환경 (dev와 동일한 구조)
+│       ├── modules/
+│       ├── resources/
+│       └── projects/
 │
-└── prod/                       # 운영 환경 (dev와 동일한 구조)
-    ├── modules/
-    ├── resources/
-    └── projects/
+└── tests/                      # 모듈 테스트 디렉토리
+    └── ecs-service-test/       # ECS Service 모듈 테스트
+        └── main.tf
 ```
 
 ## Terraform 모범사례
@@ -143,15 +150,71 @@ tf-aws-module/
 - **공통 코드**: 모듈을 통해 공통 로직 재사용
 - **환경별 설정**: variables.tf와 terraform.tfvars로 환경별 차이 관리
 
+## 모듈 테스트
+
+### 테스트 진행 방법
+
+모듈 개발 완료 후 `tests/` 디렉토리에서 단위 테스트를 수행합니다.
+
+#### 1. 테스트 파일 작성
+```hcl
+# tests/{module-name}-test/main.tf
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.18.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "ap-northeast-2"
+}
+
+module "test_module" {
+  source = "../../infra/dev/modules/{module-path}"
+  # 테스트용 변수 설정
+}
+```
+
+#### 2. 테스트 실행
+```bash
+cd tests/{module-name}-test
+
+# 모듈 초기화
+terraform init
+
+# 구문 검증
+terraform validate
+
+# 실행 계획 확인 (실제 리소스 생성 없이 검증)
+terraform plan
+```
+
+#### 3. 테스트 예시: ECS Service 모듈
+```bash
+cd tests/ecs-service-test
+terraform init
+terraform validate  # ✅ Success! The configuration is valid.
+terraform plan      # Plan: 1 to add, 0 to change, 0 to destroy.
+```
+
+### 테스트 완료 모듈
+- [x] ECS Service 모듈 - [tests/ecs-service-test](tests/ecs-service-test/main.tf)
+
 ## 작업 진행 상황
 
 ### 완료
-- [x] 프로젝트 디렉토리 구조 설계
+- [x] 프로젝트 디렉토리 구조 설계 (infra/ 하위로 재구성)
 - [x] dev/prod 환경별 디렉토리 생성
+- [x] ECS 관련 모듈 개발 (ecs/ 디렉토리 내 구조화)
+- [x] common 모듈 개발 (네이밍 및 태그 표준화)
+- [x] 모듈 테스트 프레임워크 구축
 
 ### 진행 중
 - [ ] network 루트 모듈 개발 (data source 기반)
-- [ ] ECS 관련 모듈 개발
+- [ ] 추가 모듈 테스트 작성
 
 ### 예정
 - [ ] S3 Backend 설정

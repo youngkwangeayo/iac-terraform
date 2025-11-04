@@ -5,3 +5,6 @@ aws-def
 .terraform/
 
 .claude
+.terraform.lock.hcl
+registry.terraform.io
+registry.terraform.io/*

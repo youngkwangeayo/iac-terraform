@@ -126,9 +126,13 @@ tf-aws-module/
 
 ### 필요한 모듈 및 루트 모듈 구조
 
-#### 1. 재사용 가능한 모듈 (`dev/modules/`)
+#### 1. 재사용 가능한 모듈 (`infra/dev/modules/`)
 ```
-modules/
+infra/dev/modules/
+├── common/                     # 공통 네이밍 및 태그 모듈
+│   ├── main.tf
+│   ├── variables.tf
+│   └── outputs.tf
 ├── ecr/                        # ECR 리포지토리 모듈
 │   ├── main.tf
 │   ├── variables.tf
@@ -141,23 +145,24 @@ modules/
 │   ├── main.tf
 │   ├── variables.tf
 │   └── outputs.tf
-├── ecs-cluster/                # ECS Cluster 모듈
-│   ├── main.tf
-│   ├── variables.tf
-│   └── outputs.tf
-├── ecs-task-definition/        # ECS Task Definition 모듈
-│   ├── main.tf
-│   ├── variables.tf
-│   └── outputs.tf
-└── ecs-service/                # ECS Service 모듈
-    ├── main.tf
-    ├── variables.tf
-    └── outputs.tf
+└── ecs/                        # ECS 관련 모듈
+    ├── ecs-cluster/            # ECS Cluster 모듈
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    ├── ecs-task-definition/    # ECS Task Definition 모듈
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    └── ecs-service/            # ECS Service 모듈
+        ├── main.tf
+        ├── variables.tf
+        └── outputs.tf
 ```
 
 #### 2. 루트 모듈 구조 (규칙 적용 후)
 ```
-dev/
+infra/dev/
 ├── resources/                  # 공통 인프라 리소스 (인프라팀 관리)
 │   ├── network/                # 네트워크 루트 모듈 (기존 VPC, Subnet 참조)
 │   │   ├── terraform.tf
@@ -429,15 +434,16 @@ variable "execution_role_arn" {
 
 #### 완성된 디렉토리 구조
 ```
-dev/
+infra/dev/
 ├── modules/
 │   ├── common/                 # 공통 네이밍 및 태그 (신규)
 │   ├── ecr/
 │   ├── security-group/
 │   ├── target-group/
-│   ├── ecs-cluster/
-│   ├── ecs-task-definition/
-│   └── ecs-service/
+│   └── ecs/                    # ECS 관련 모듈 (구조화)
+│       ├── ecs-cluster/
+│       ├── ecs-task-definition/
+│       └── ecs-service/
 │
 ├── resources/                  # 공통 인프라 (인프라팀 관리)
 │   ├── network/
@@ -560,3 +566,271 @@ terraform {
 5. **Remote State 참조**
    - 공통 인프라는 항상 resources State 참조
    - State bucket, key, region 정확히 지정
+
+---
+
+## 2025-11-04: 모듈 테스트 프레임워크 구축
+
+### 테스트 환경 구성
+
+프로젝트의 모듈 품질 보증을 위해 `tests/` 디렉토리에 테스트 프레임워크를 구축했습니다.
+
+#### 테스트 디렉토리 구조
+```
+tests/
+└── ecs-service-test/           # ECS Service 모듈 테스트
+    ├── .terraform/             # Terraform 초기화 파일
+    ├── .terraform.lock.hcl     # Provider 버전 잠금 파일
+    └── main.tf                 # 테스트 설정 파일
+```
+
+### 테스트 방법론
+
+#### 1. 테스트 파일 구성
+각 모듈별 테스트 디렉토리를 생성하고 `main.tf`에 테스트 케이스를 작성합니다.
+
+**테스트 파일 구조:**
+```hcl
+# tests/{module-name}-test/main.tf
+
+# 1. Terraform 및 Provider 설정
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.18.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "ap-northeast-2"
+}
+
+# 2. 모듈 테스트 케이스
+module "test_module" {
+  source = "../../infra/dev/modules/{module-path}"
+
+  # 테스트용 변수 설정
+  # ARN, ID 등은 더미 값 사용 가능
+}
+```
+
+#### 2. 테스트 실행 절차
+
+```bash
+# 1. 테스트 디렉토리 이동
+cd tests/{module-name}-test
+
+# 2. Terraform 초기화 (모듈 다운로드 및 Provider 설치)
+terraform init
+
+# 3. 구문 검증 (HCL 문법 및 설정 유효성 검사)
+terraform validate
+
+# 4. 실행 계획 확인 (리소스 생성 없이 dry-run)
+terraform plan
+```
+
+#### 3. 테스트 성공 기준
+
+**✅ 테스트 통과 조건:**
+1. `terraform validate` → "Success! The configuration is valid."
+2. `terraform plan` → 오류 없이 실행 계획 생성
+3. 예상한 리소스가 계획에 포함됨
+
+**❌ 테스트 실패 사례:**
+- 구문 오류 (Unsupported argument, Unsupported block type)
+- 필수 변수 누락
+- 타입 불일치
+- 모듈 경로 오류
+
+### ECS Service 모듈 테스트 사례
+
+#### 테스트 수행 과정
+
+**1. 초기 테스트 실패**
+```bash
+cd tests/ecs-service-test
+terraform validate
+
+# Error: Unsupported argument
+# on ../../infra/dev/modules/ecs/ecs-service/main.tf line 39
+# An argument named "maximum_percent" is not expected here.
+```
+
+**문제점:** `deployment_configuration` 블록 구조가 AWS Provider의 ECS Service 리소스 스키마와 불일치
+
+**2. 모듈 수정**
+[infra/dev/modules/ecs/ecs-service/main.tf:38](infra/dev/modules/ecs/ecs-service/main.tf#L38)
+
+변경 전:
+```hcl
+deployment_configuration {
+  maximum_percent         = var.deployment_configuration.maximum_percent
+  minimum_healthy_percent = var.deployment_configuration.minimum_healthy_percent
+
+  deployment_circuit_breaker {
+    enable   = var.deployment_configuration.deployment_circuit_breaker.enable
+    rollback = var.deployment_configuration.deployment_circuit_breaker.rollback
+  }
+}
+```
+
+변경 후:
+```hcl
+deployment_controller {
+  type = "ECS"
+}
+
+deployment_circuit_breaker {
+  enable   = var.deployment_configuration.deployment_circuit_breaker.enable
+  rollback = var.deployment_configuration.deployment_circuit_breaker.rollback
+}
+
+deployment_maximum_percent         = var.deployment_configuration.maximum_percent
+deployment_minimum_healthy_percent = var.deployment_configuration.minimum_healthy_percent
+```
+
+**3. 테스트 성공**
+```bash
+terraform validate
+# ✅ Success! The configuration is valid.
+
+terraform plan
+# ✅ Plan: 1 to add, 0 to change, 0 to destroy.
+```
+
+**생성 예정 리소스 확인:**
+```
+# module.aws_ecs_service.aws_ecs_service.this will be created
++ resource "aws_ecs_service" "this" {
+    + cluster                            = "arn:aws:ecs:ap-northeast-2:123456789012:cluster/test"
+    + deployment_maximum_percent         = 200
+    + deployment_minimum_healthy_percent = 100
+    + desired_count                      = 1
+    + enable_execute_command             = true
+    + launch_type                        = "FARGATE"
+    + platform_version                   = "LATEST"
+
+    + deployment_circuit_breaker {
+        + enable   = true
+        + rollback = true
+    }
+
+    + network_configuration {
+        + assign_public_ip = true
+        + security_groups  = ["sg-xxx"]
+        + subnets          = ["subnet-xxx"]
+    }
+}
+```
+
+### 테스트 결과 요약
+
+#### 테스트 완료 모듈
+1. ✅ **ECS Service 모듈** ([tests/ecs-service-test](tests/ecs-service-test/main.tf))
+   - 모듈 경로: `infra/dev/modules/ecs/ecs-service`
+   - 테스트 상태: 통과
+   - 검증 항목:
+     - ECS Service 리소스 생성
+     - Deployment configuration 설정
+     - Circuit breaker 설정
+     - Network configuration 설정
+     - Launch type FARGATE 설정
+
+#### 테스트 대기 모듈
+- [ ] ECS Cluster 모듈
+- [ ] ECS Task Definition 모듈
+- [ ] ECR 모듈
+- [ ] Security Group 모듈
+- [ ] Target Group 모듈
+- [ ] Common 모듈
+
+### 테스트 모범 사례
+
+#### 1. 모듈 경로 설정
+```hcl
+# ✅ 올바른 경로 (infra/ 하위)
+source = "../../infra/dev/modules/ecs/ecs-service"
+
+# ❌ 잘못된 경로
+source = "../../dev/modules/ecs-service"  # infra/ 누락
+```
+
+#### 2. 더미 값 사용
+테스트 시 실제 AWS 리소스 ARN이 필요하지 않은 경우 더미 값 사용:
+```hcl
+cluster_id          = "arn:aws:ecs:ap-northeast-2:123456789012:cluster/test"
+task_definition_arn = "arn:aws:ecs:ap-northeast-2:123456789012:task-definition/test:1"
+subnets             = ["subnet-xxx"]
+security_groups     = ["sg-xxx"]
+```
+
+#### 3. 필수 변수만 설정
+테스트 시 선택적 변수는 모듈의 기본값 사용:
+```hcl
+module "test" {
+  source = "..."
+
+  # 필수 변수만 설정
+  name                = "test-svc"
+  cluster_id          = "..."
+  task_definition_arn = "..."
+
+  # 선택적 변수는 기본값 사용 (명시 불필요)
+}
+```
+
+#### 4. 반복 테스트
+모듈 수정 후 즉시 테스트 실행하여 회귀 방지:
+```bash
+# 모듈 수정 후
+cd tests/{module-name}-test
+terraform init      # 모듈 업데이트
+terraform validate  # 구문 검증
+terraform plan      # 동작 검증
+```
+
+### 향후 테스트 확장 계획
+
+#### 1. 통합 테스트
+여러 모듈을 조합한 통합 테스트 작성:
+```
+tests/
+└── integration-test/
+    └── ecs-full-stack-test/  # Cluster + Task Definition + Service
+```
+
+#### 2. 자동화 테스트
+CI/CD 파이프라인에 테스트 자동 실행 통합:
+```bash
+#!/bin/bash
+# test-all-modules.sh
+for test_dir in tests/*/; do
+  cd "$test_dir"
+  terraform init -upgrade
+  terraform validate || exit 1
+  terraform plan || exit 1
+  cd -
+done
+```
+
+#### 3. 실제 배포 테스트
+개발 환경에 실제 리소스 배포 후 동작 확인:
+```bash
+# 주의: 실제 AWS 리소스 생성 (비용 발생)
+terraform apply -auto-approve
+# 테스트 후 정리
+terraform destroy -auto-approve
+```
+
+### 테스트 문서화
+
+모든 테스트 결과는 다음 정보를 포함해야 합니다:
+1. **테스트 일시**: 2025-11-04
+2. **테스트 모듈**: ECS Service
+3. **테스트 결과**: 통과/실패
+4. **발견된 이슈**: deployment_configuration 구조 오류
+5. **수정 내용**: deployment_* 속성을 리소스 최상위로 이동
+6. **검증 방법**: terraform validate, terraform plan
