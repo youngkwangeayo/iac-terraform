@@ -1,0 +1,10 @@
+{
+  "archives": {
+    "darwin_arm64": {
+      "hashes": [
+        "h1:5MWlORDu2wCba8bkjS9aYYMm62FvwPd4kY1+fQcpi0A="
+      ],
+      "url": "terraform-provider-aws_6.18.0_darwin_arm64.zip"
+    }
+  }
+}
