@@ -71,38 +71,41 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 - [x] S3 Backend State 마이그레이션 완료
 - [x] 이전 경로 State 파일 정리 완료
 
+#### 7. ELB 디렉토리 구조 적용 및 State 생성
+- [x] ELB 디렉토리 구조 적용 (`dev/resources/elb/nextpay/`)
+- [x] dev-cms-elb State 생성 완료
+- [x] Network State 참조 추가
+- [x] CMS 모듈 ELB 참조 경로 업데이트
+- [x] S3 Backend에 State 저장 완료
+
 ### 🔄 다음 작업 (우선순위 순)
 
-#### 1. ELB State 생성
-- [ ] `infra/dev/resources/elb` 배포
-  - ALB, HTTPS Listener data source 동작 확인
-  - State에 ELB 정보 저장
-
-#### 2. IAM Role 생성
+#### 1. IAM Role 생성
 - [ ] ecsTaskRole 생성
 - [ ] ecsTaskExecutionRole 생성
 
-#### 3. ECR 이미지 푸시
+#### 2. ECR 이미지 푸시
 - [ ] Docker 이미지 빌드
 - [ ] ECR에 이미지 푸시
 
-#### 4. CMS 프로젝트 배포
+#### 3. CMS 프로젝트 배포
 - [ ] `infra/dev/projects/cms` 배포
   - Remote State 참조 확인
   - ECS 전체 스택 배포
 
 ### 📊 진행률
 
-**Phase 2 (ECS 배포 환경 구축): 85% 완료**
+**Phase 2 (ECS 배포 환경 구축): 90% 완료**
 
 - ✅ 모듈 개발 (100%)
 - ✅ 모듈 테스트 (100%)
 - ✅ 루트 모듈 작성 (100%)
-- 🔄 인프라 배포 (75%)
+- 🔄 인프라 배포 (90%)
   - ✅ Backend 설정 (S3 + DynamoDB)
   - ✅ Backend 연동 확인 (terraform init)
   - ✅ Network State 생성 (dev-vpc)
-  - 🔄 ELB State 생성
+  - ✅ ELB State 생성 (dev-cms-elb)
+  - 🔄 IAM Role 생성
   - 실제 리소스 배포
 
 

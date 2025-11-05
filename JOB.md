@@ -355,6 +355,15 @@ infra/
 
 ## ✅ 완료된 작업 (역순)
 
+### 2025-11-05: ELB 디렉토리 구조 적용 및 State 생성
+- [x] ELB 디렉토리 구조 적용 (`dev/resources/elb/nextpay/`)
+- [x] backend.tf key 경로: `dev/resources/elb/nextpay/terraform.tfstate`
+- [x] ALB 이름 설정: `dev-cms-elb`
+- [x] Network State 참조 추가
+- [x] terraform init, validate, plan, apply 성공
+- [x] S3 Backend에 State 저장 완료
+- [x] CMS 모듈 ELB 참조 경로 업데이트
+
 ### 2025-11-05: Network 디렉토리 구조 최종 확정 (환경별 VPC 관리)
 - [x] VPC 매핑 전략 수립 및 문서화
   - dev/resources/network/nextpay/ → dev-vpc
