@@ -78,35 +78,35 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 - [x] CMS 모듈 ELB 참조 경로 업데이트
 - [x] S3 Backend에 State 저장 완료
 
+#### 8. IAM Role Terraform 관리 전환
+- [x] 기존 IAM Role (ecsTaskExecutionRole, ecsTaskRole) 정책 확인
+- [x] IAM 루트 모듈 생성 (`dev/resources/iam/ecs-roles/`)
+- [x] 8개 Policy Attachment 포함 (ExecutionRole 4개, TaskRole 4개)
+- [x] Terraform import 완료 (Role 2개 + Policy Attachment 8개)
+- [x] terraform apply 완료 (태그만 추가, 정책 유지)
+- [x] S3 Backend State 저장 (`dev/resources/iam/ecs-roles/terraform.tfstate`)
+
 ### 🔄 다음 작업 (우선순위 순)
 
-#### 1. IAM Role 생성
-- [ ] ecsTaskRole 생성
-- [ ] ecsTaskExecutionRole 생성
-
-#### 2. ECR 이미지 푸시
-- [ ] Docker 이미지 빌드
-- [ ] ECR에 이미지 푸시
-
-#### 3. CMS 프로젝트 배포
+#### 1. CMS 프로젝트 배포
 - [ ] `infra/dev/projects/cms` 배포
   - Remote State 참조 확인
   - ECS 전체 스택 배포
 
 ### 📊 진행률
 
-**Phase 2 (ECS 배포 환경 구축): 90% 완료**
+**Phase 2 (ECS 배포 환경 구축): 95% 완료**
 
 - ✅ 모듈 개발 (100%)
 - ✅ 모듈 테스트 (100%)
 - ✅ 루트 모듈 작성 (100%)
-- 🔄 인프라 배포 (90%)
+- 🔄 인프라 배포 (95%)
   - ✅ Backend 설정 (S3 + DynamoDB)
   - ✅ Backend 연동 확인 (terraform init)
   - ✅ Network State 생성 (dev-vpc)
   - ✅ ELB State 생성 (dev-cms-elb)
-  - 🔄 IAM Role 생성
-  - 실제 리소스 배포
+  - ✅ IAM Role Terraform 관리 전환
+  - 🔄 실제 리소스 배포 (ECR 이미지, CMS 프로젝트)
 
 
 ## 네이밍 규칙

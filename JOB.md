@@ -2,6 +2,137 @@
 
 ## 📌 다음 세션에서 할 작업 (우선순위 순)
 
+### 🎯 우선순위 1: ECR 이미지 푸시
+
+**목적**: CMS 컨테이너 이미지를 ECR에 푸시
+
+**사전 조건:**
+- ECR Repository가 생성되어 있어야 함 (CMS 배포 시 자동 생성됨)
+- 또는 먼저 ECR만 생성하려면:
+  ```bash
+  cd infra/dev/projects/cms
+  terraform apply -target=module.ecr
+  ```
+
+**작업 상세:**
+
+1. **ECR 로그인**
+   ```bash
+   aws ecr get-login-password --region ap-northeast-2 | \
+     docker login --username AWS --password-stdin \
+     365485194891.dkr.ecr.ap-northeast-2.amazonaws.com
+   ```
+
+2. **Docker 이미지 빌드**
+   ```bash
+   # CMS 애플리케이션 디렉토리로 이동
+   cd /path/to/cms/app
+
+   # 이미지 빌드
+   docker build -t dev-cms:latest .
+   ```
+
+3. **이미지 태그 및 푸시**
+   ```bash
+   # ECR Repository URL 확인
+   ECR_URL=$(cd infra/dev/projects/cms && terraform output -raw ecr_repository_url)
+
+   # 이미지 태그
+   docker tag dev-cms:latest $ECR_URL:latest
+   docker tag dev-cms:latest $ECR_URL:v1.0.0
+
+   # 이미지 푸시
+   docker push $ECR_URL:latest
+   docker push $ECR_URL:v1.0.0
+   ```
+
+**완료 조건:**
+- [ ] ECR 로그인 성공
+- [ ] Docker 이미지 빌드 완료
+- [ ] 이미지 푸시 완료
+- [ ] ECR Console에서 이미지 확인
+
+---
+
+### 🎯 우선순위 2: CMS 프로젝트 배포
+
+**목적**: ECS 기반 CMS 애플리케이션 전체 스택 배포
+
+**사전 조건 확인:**
+- [x] Network State 생성 완료
+- [x] ELB State 생성 완료
+- [x] IAM Role 생성 완료
+- [ ] ECR 이미지 푸시 완료
+
+**작업 상세:**
+
+1. **variables.tf 확인 및 수정**
+   ```bash
+   cd infra/dev/projects/cms
+
+   # variables.tf에서 다음 값들 확인:
+   # - task_role_arn: arn:aws:iam::365485194891:role/ecsTaskRole
+   # - execution_role_arn: arn:aws:iam::365485194891:role/ecsTaskExecutionRole
+   # - container_image: ECR 이미지 URL
+   ```
+
+2. **Terraform 실행**
+   ```bash
+   # 1. 초기화
+   terraform init
+
+   # 2. 구문 검증
+   terraform validate
+
+   # 3. 실행 계획 확인
+   terraform plan
+
+   # 4. 배포
+   terraform apply
+
+   # 5. 출력 확인
+   terraform output
+   ```
+
+3. **배포 확인**
+   ```bash
+   # ECS 서비스 상태 확인
+   aws ecs describe-services \
+     --cluster dev-cms-cluster \
+     --services dev-cms-service
+
+   # Task 상태 확인
+   aws ecs list-tasks \
+     --cluster dev-cms-cluster \
+     --service-name dev-cms-service
+   ```
+
+**완료 조건:**
+- [ ] Terraform apply 성공
+- [ ] ECS Service Running
+- [ ] Task 정상 실행
+- [ ] Health Check 통과
+- [ ] 애플리케이션 접근 가능
+
+---
+
+## ✅ 완료된 작업 (역순)
+
+### 2025-11-05: IAM Role Terraform 관리 전환 완료
+- [x] 기존 IAM Role 정책 확인 (ecsTaskExecutionRole, ecsTaskRole)
+  - ecsTaskExecutionRole: 4개 정책
+  - ecsTaskRole: 4개 정책
+- [x] IAM 루트 모듈 생성 (`infra/dev/resources/iam/ecs-roles/`)
+- [x] main.tf에 8개 policy attachment 모두 포함
+- [x] terraform import 성공 (Role 2개 + Policy Attachment 8개)
+- [x] terraform apply 성공 (태그만 추가, 정책 무손실)
+- [x] S3 Backend State 저장 완료
+- [x] Role ARNs 확인:
+  - ecsTaskExecutionRole: arn:aws:iam::365485194891:role/ecsTaskExecutionRole
+  - ecsTaskRole: arn:aws:iam::365485194891:role/ecsTaskRole
+
+---
+
 ### ✅ 완료: S3 Backend 연동 확인
 
 **목적**: 각 루트 모듈이 생성된 Backend를 올바르게 사용하도록 설정 확인
@@ -60,255 +191,6 @@
    - private_subnet_ids (7개)
    - public_subnet_ids (3개)
    - private_subnet_details, public_subnet_details
-
----
-
-### 🎯 우선순위 1: ELB State 생성
-
-**목적**: 기존 ALB, HTTPS Listener 정보를 data source로 읽어 State에 저장
-
-**작업 상세:**
-
-1. **사전 확인**
-   - AWS Console에서 실제 ALB ARN 확인
-   - AWS Console에서 HTTPS Listener ARN 확인
-
-2. **Terraform 실행**
-   ```bash
-   cd infra/dev/resources/elb
-   
-   # 1. 초기화
-   terraform init
-   
-   # 2. 구문 검증
-   terraform validate
-   
-   # 3. Remote State 참조 확인
-   terraform plan
-   # 확인 사항:
-   # - data.terraform_remote_state.network가 동작하는가?
-   # - data.aws_lb.main이 실제 ALB를 찾는가?
-   # - data.aws_lb_listener.https가 실제 Listener를 찾는가?
-   
-   # 4. 배포
-   terraform apply
-   
-   # 5. 출력 확인
-   terraform output
-   # alb_arn, https_listener_arn, security_groups가 출력되는지 확인
-   ```
-
-**완료 조건:**
-- [ ] Network State 참조 성공
-- [ ] ALB data source 동작 확인
-- [ ] HTTPS Listener data source 동작 확인
-- [ ] State 파일에 ELB 정보 저장 완료
-
----
-
-### 🎯 우선순위 2: IAM Role 생성
-
-**목적**: ECS Task 실행에 필요한 IAM Role 생성
-
-**작업 상세:**
-
-#### 4-1. ecsTaskExecutionRole 생성
-
-```bash
-# Trust Policy 파일 생성
-cat > /tmp/ecs-task-execution-trust-policy.json << 'POLICY'
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "ecs-tasks.amazonaws.com"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-POLICY
-
-# Role 생성
-aws iam create-role \
-  --role-name ecsTaskExecutionRole \
-  --assume-role-policy-document file:///tmp/ecs-task-execution-trust-policy.json
-
-# AWS 관리형 정책 연결
-aws iam attach-role-policy \
-  --role-name ecsTaskExecutionRole \
-  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-
-# ARN 확인
-aws iam get-role --role-name ecsTaskExecutionRole --query 'Role.Arn'
-```
-
-#### 4-2. ecsTaskRole 생성
-
-```bash
-# Trust Policy 파일 생성
-cat > /tmp/ecs-task-trust-policy.json << 'POLICY'
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "ecs-tasks.amazonaws.com"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-POLICY
-
-# Role 생성
-aws iam create-role \
-  --role-name ecsTaskRole \
-  --assume-role-policy-document file:///tmp/ecs-task-trust-policy.json
-
-# 필요한 정책 연결 (애플리케이션에 따라 다름)
-# 예: S3 접근이 필요하면 S3 관련 정책 추가
-
-# ARN 확인
-aws iam get-role --role-name ecsTaskRole --query 'Role.Arn'
-```
-
-**완료 조건:**
-- [ ] ecsTaskExecutionRole 생성 완료
-- [ ] ecsTaskRole 생성 완료
-- [ ] 각 Role의 ARN 확인 및 기록
-
----
-
-### 🎯 우선순위 3: ECR 이미지 푸시
-
-**목적**: CMS 컨테이너 이미지를 ECR에 푸시
-
-**사전 조건:**
-- ECR Repository가 생성되어 있어야 함 (CMS 배포 시 자동 생성됨)
-- 또는 먼저 ECR만 생성하려면:
-  ```bash
-  cd infra/dev/projects/cms
-  terraform apply -target=module.ecr
-  ```
-
-**작업 상세:**
-
-1. **ECR 로그인**
-   ```bash
-   aws ecr get-login-password --region ap-northeast-2 | \
-     docker login --username AWS --password-stdin \
-     <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
-   ```
-
-2. **Docker 이미지 빌드**
-   ```bash
-   # CMS 애플리케이션 디렉토리로 이동
-   cd /path/to/cms/app
-   
-   # 이미지 빌드
-   docker build -t dev-cms:latest .
-   ```
-
-3. **이미지 태그 및 푸시**
-   ```bash
-   # ECR Repository URL 확인
-   ECR_URL=$(cd infra/dev/projects/cms && terraform output -raw ecr_repository_url)
-   
-   # 이미지 태그
-   docker tag dev-cms:latest $ECR_URL:latest
-   docker tag dev-cms:latest $ECR_URL:v1.0.0
-   
-   # 이미지 푸시
-   docker push $ECR_URL:latest
-   docker push $ECR_URL:v1.0.0
-   ```
-
-**완료 조건:**
-- [ ] ECR 로그인 성공
-- [ ] Docker 이미지 빌드 완료
-- [ ] 이미지 푸시 완료
-- [ ] ECR Console에서 이미지 확인
-
----
-
-### 🎯 우선순위 4: CMS 프로젝트 배포
-
-**목적**: ECS 기반 CMS 애플리케이션 전체 스택 배포
-
-**사전 조건 확인:**
-- [x] Network State 생성 완료
-- [x] ELB State 생성 완료
-- [x] IAM Role 생성 완료
-- [x] ECR 이미지 푸시 완료
-
-**작업 상세:**
-
-1. **variables.tf 확인 및 수정**
-   ```bash
-   cd infra/dev/projects/cms
-   
-   # variables.tf에서 다음 값들 확인:
-   # - task_role_arn: IAM Role ARN
-   # - execution_role_arn: IAM Role ARN
-   # - container_image: ECR 이미지 URL (또는 비워두면 ECR URL 자동 사용)
-   ```
-
-2. **Terraform 실행**
-   ```bash
-   # 1. 초기화
-   terraform init
-   
-   # 2. 구문 검증
-   terraform validate
-   
-   # 3. 실행 계획 확인
-   terraform plan
-   # 확인 사항:
-   # - Remote State 참조 (network, elb) 동작하는가?
-   # - 생성될 리소스 개수가 예상과 맞는가?
-   # - ECR, Security Group, Target Group, ECS Cluster, Task Definition, Service
-   
-   # 4. 배포
-   terraform apply
-   # 약 5-10분 소요 예상
-   
-   # 5. 출력 확인
-   terraform output
-   ```
-
-3. **배포 확인**
-   ```bash
-   # ECS 서비스 상태 확인
-   aws ecs describe-services \
-     --cluster dev-cms-cluster \
-     --services dev-cms-service \
-     --query 'services[0].{Status:status,Running:runningCount,Desired:desiredCount}'
-   
-   # Task 상태 확인
-   aws ecs list-tasks \
-     --cluster dev-cms-cluster \
-     --service-name dev-cms-service
-   
-   # ALB Target Group 헬스 체크 확인
-   aws elbv2 describe-target-health \
-     --target-group-arn <TARGET_GROUP_ARN>
-   ```
-
-**완료 조건:**
-- [ ] Terraform apply 성공
-- [ ] ECS Service가 Running 상태
-- [ ] Task가 정상 실행 중
-- [ ] Target Group Health Check 통과
-- [ ] 애플리케이션 접근 가능
-
-**문제 해결:**
-- Task가 시작하지 않으면: CloudWatch Logs 확인
-- Health Check 실패: Security Group 규칙 확인
-- 이미지 pull 실패: IAM Role 권한 확인
 
 ---
 
