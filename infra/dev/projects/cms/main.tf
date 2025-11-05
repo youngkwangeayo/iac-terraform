@@ -43,20 +43,12 @@ module "common" {
   project_name = var.project_name
 }
 
-# ECR용 네이밍 (네이밍 규칙: ecr-{environment}-{project_name})
-module "common_ecr" {
-  source = "../../../modules/common"
-
-  environment  = var.environment
-  project_name = var.project_name
-  aws_service  = "ecr"
-}
 
 # 로컬 변수 (모듈에서 가져온 값 사용)
 locals {
-  name_prefix     = module.common.name_prefix
-  ecr_name_prefix = module.common_ecr.service_prefix
-  common_tags     = module.common.common_tags
+  name_prefix = module.common.name_prefix
+  common_tags = module.common.common_tags
+
 }
 
 # ============================================================================
@@ -66,7 +58,7 @@ locals {
 module "ecr" {
   source = "../../../modules/ecr"
 
-  repository_name      = local.ecr_name_prefix
+  repository_name      = "ecr-${local.name_prefix}"
   image_tag_mutability = "MUTABLE"
   scan_on_push         = true
 
@@ -111,7 +103,7 @@ module "ecr" {
 module "ecs_security_group" {
   source = "../../../modules/security-group"
 
-  name        = "${local.name_prefix}-ecs"
+  name        = "sg-${local.name_prefix}"
   description = "Security group for CMS ECS tasks"
   vpc_id      = data.terraform_remote_state.network.outputs.vpc_id
 
@@ -145,7 +137,7 @@ module "ecs_security_group" {
 module "target_group" {
   source = "../../../modules/target-group"
 
-  name        = "${local.name_prefix}-tg"
+  name        = "tg-${local.name_prefix}"
   port        = var.container_port
   protocol    = "HTTP"
   vpc_id      = data.terraform_remote_state.network.outputs.vpc_id
@@ -195,7 +187,7 @@ resource "aws_lb_listener_rule" "https" {
 module "ecs_cluster" {
   source = "../../../modules/ecs/ecs-cluster"
 
-  cluster_name        = "${local.name_prefix}-cluster"
+  cluster_name        = "cluster-${local.name_prefix}"
   capacity_providers  = ["FARGATE", "FARGATE_SPOT"]
   container_insights  = true
 
@@ -220,7 +212,7 @@ resource "aws_cloudwatch_log_group" "ecs" {
 module "ecs_task_definition" {
   source = "../../../modules/ecs/ecs-task-definition"
 
-  family                   = "${local.name_prefix}-task"
+  family                   = "task-${local.name_prefix}"
   cpu                      = var.task_cpu
   memory                   = var.task_memory
   network_mode             = "awsvpc"
@@ -294,7 +286,7 @@ module "ecs_task_definition" {
 module "ecs_service" {
   source = "../../../modules/ecs/ecs-service"
 
-  name                = "${local.name_prefix}-service"
+  name                = "service-${local.name_prefix}"
   cluster_id          = module.ecs_cluster.cluster_arn
   task_definition_arn = module.ecs_task_definition.task_definition_arn
   desired_count       = var.desired_count
@@ -310,7 +302,7 @@ module "ecs_service" {
   ]
 
   network_configuration = {
-    subnets          = data.terraform_remote_state.network.outputs.subnet_ids
+    subnets          = data.terraform_remote_state.network.outputs.private_subnet_ids
     security_groups  = [module.ecs_security_group.security_group_id]
     assign_public_ip = true
   }
