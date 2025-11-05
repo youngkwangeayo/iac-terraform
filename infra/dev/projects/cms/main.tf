@@ -2,12 +2,12 @@
 # Remote State 참조 - 공통 인프라 리소스
 # ============================================================================
 
-# Network 정보 참조
+# Network 정보 참조 (dev-vpc)
 data "terraform_remote_state" "network" {
   backend = "s3"
   config = {
-    bucket = "terraform-state-dev-cms"
-    key    = "dev/resources/network/terraform.tfstate"
+    bucket = "nextpay-terraform-state"
+    key    = "dev/resources/network/nextpay/terraform.tfstate"
     region = var.aws_region
   }
 }
@@ -16,7 +16,7 @@ data "terraform_remote_state" "network" {
 data "terraform_remote_state" "elb" {
   backend = "s3"
   config = {
-    bucket = "terraform-state-dev-cms"
+    bucket = "nextpay-terraform-state"
     key    = "dev/resources/elb/terraform.tfstate"
     region = var.aws_region
   }

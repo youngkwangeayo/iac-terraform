@@ -63,42 +63,46 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 - [x] 3개 루트 모듈 backend.tf 설정 완료
 - [x] terraform init 성공 확인
 
+#### 6. Network 디렉토리 구조 개선 및 State 생성
+- [x] VPC별 State 격리 구조 적용 (`dev/resources/network/nextpay/`)
+- [x] VPC 매핑 전략 수립 (환경별 디렉토리 관리)
+- [x] dev-vpc (vpc-276cc74c) State 생성 완료
+- [x] Private/Public Subnet 필터링 개선 (소문자 매칭)
+- [x] S3 Backend State 마이그레이션 완료
+- [x] 이전 경로 State 파일 정리 완료
+
 ### 🔄 다음 작업 (우선순위 순)
 
-#### 1. Network State 생성
-- [ ] `infra/dev/resources/network` 배포
-  - VPC, Subnet data source 동작 확인
-  - State에 네트워크 정보 저장
-
-#### 2. ELB State 생성
+#### 1. ELB State 생성
 - [ ] `infra/dev/resources/elb` 배포
   - ALB, HTTPS Listener data source 동작 확인
   - State에 ELB 정보 저장
 
-#### 3. IAM Role 생성
+#### 2. IAM Role 생성
 - [ ] ecsTaskRole 생성
 - [ ] ecsTaskExecutionRole 생성
 
-#### 4. ECR 이미지 푸시
+#### 3. ECR 이미지 푸시
 - [ ] Docker 이미지 빌드
 - [ ] ECR에 이미지 푸시
 
-#### 5. CMS 프로젝트 배포
+#### 4. CMS 프로젝트 배포
 - [ ] `infra/dev/projects/cms` 배포
   - Remote State 참조 확인
   - ECS 전체 스택 배포
 
 ### 📊 진행률
 
-**Phase 2 (ECS 배포 환경 구축): 80% 완료**
+**Phase 2 (ECS 배포 환경 구축): 85% 완료**
 
 - ✅ 모듈 개발 (100%)
 - ✅ 모듈 테스트 (100%)
 - ✅ 루트 모듈 작성 (100%)
-- 🔄 인프라 배포 (50%)
+- 🔄 인프라 배포 (75%)
   - ✅ Backend 설정 (S3 + DynamoDB)
   - ✅ Backend 연동 확인 (terraform init)
-  - 🔄 State 생성 (network, elb)
+  - ✅ Network State 생성 (dev-vpc)
+  - 🔄 ELB State 생성
   - 실제 리소스 배포
 
 
@@ -113,6 +117,28 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 
 ## 루트 모듈 관리 규칙
 
+### VPC 관리 전략
+
+#### VPC별 State 격리
+각 VPC는 독립적인 루트 모듈로 관리하며, **환경별 디렉토리**에 위치시킵니다.
+
+**현재 AWS VPC 현황** (콘솔로 생성된 기존 리소스):
+- `dev-vpc`: nextpay 개발 환경
+- `nextpay1-vpc`: nextpay 운영 환경
+- `prod-ai-platform-vpc`: AI Platform 운영 환경
+
+**Terraform 디렉토리 매핑**:
+| Terraform 경로 | AWS VPC 이름 | 환경 | 설명 |
+|----------------|--------------|------|------|
+| `dev/resources/network/nextpay/` | `dev-vpc` | Dev | nextpay 개발 |
+| `prod/resources/network/nextpay/` | `nextpay1-vpc` | Prod | nextpay 운영 |
+| `prod/resources/network/ai-platform/` | `prod-ai-platform-vpc` | Prod | AI Platform 운영 |
+
+**왜 VPC별로 분리?**
+- State 격리: 각 VPC가 독립적인 State 파일 보유
+- 안전성: 한 VPC 작업이 다른 VPC에 영향 없음
+- 확장성: 새로운 VPC 추가 시 동일 패턴 적용
+
 ### 리소스 분류 기준
 리소스의 **수명주기(생성·삭제 주체)**와 **재사용 범위**를 기준으로 루트 모듈을 구성합니다.
 
@@ -120,8 +146,8 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 - **관리 주체**: 인프라팀
 - **수명주기**: 프로젝트와 독립적으로 관리
 - **재사용 범위**: 여러 프로젝트에서 공통으로 사용
-- **예시**: Network, 범용 Security Group, 공유 ECR, 공유 EC2 등
-- **위치**: `dev/resources/network/`, `dev/resources/elb/`
+- **예시**: Network (VPC별), ELB, 공유 Security Group
+- **위치**: `dev/resources/network/nextpay/`, `dev/resources/elb/`
 
 #### 2. 프로젝트 전용 리소스 (`projects/{project-name}/` 디렉토리)
 - **관리 주체**: 프로젝트 담당자
@@ -136,17 +162,22 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 ### 적용 예시
 
 ```
-# 현재 구조
+# 현재 구조 (환경별 VPC 관리)
 dev/
-├── resources/              # 공통 인프라 리소스 (인프라팀 관리)
-│   ├── network/           # 공통 네트워크 (VPC, Subnet 참조)
-│   └── elb/               # 공통 로드밸런서 참조
-│
-└── projects/              # 프로젝트별 전용 리소스
-    └── cms/               # CMS 프로젝트
-        ├── ecr/           # CMS 전용 ECR (프로젝트와 생명주기 동일)
-        ├── cluster/       # CMS 전용 ECS Cluster
-        └── service/       # CMS ECS Service
+├── resources/
+│   ├── network/
+│   │   └── nextpay/       # dev-vpc 관리 (nextpay 개발 환경)
+│   └── elb/
+└── projects/
+    └── cms/
+
+prod/
+├── resources/
+│   ├── network/
+│   │   ├── nextpay/       # nextpay1-vpc 관리 (nextpay 운영 환경)
+│   │   └── ai-platform/   # prod-ai-platform-vpc 관리 (AI Platform 운영 환경)
+│   └── elb/
+└── projects/
 
 # 향후 멀티 클라우드 구조 (마이그레이션)
 dev/
@@ -181,12 +212,15 @@ tf-aws-module/
 │   │
 │   ├── dev/                    # 개발 환경
 │   │   ├── resources/          # 공통 인프라 리소스 (인프라팀 관리)
-│   │   │   ├── network/        # 네트워크 루트 모듈
-│   │   │   │   ├── terraform.tf    # Terraform 버전 및 Provider 설정
-│   │   │   │   ├── backend.tf      # S3 backend 설정
-│   │   │   │   ├── main.tf         # data source로 기존 VPC 등을 읽어 State 관리
-│   │   │   │   ├── variables.tf
-│   │   │   │   └── outputs.tf
+│   │   │   ├── network/        # 네트워크 리소스 (VPC별 관리)
+│   │   │   │   ├── dev-vpc/        # dev-vpc 전용
+│   │   │   │   │   ├── terraform.tf
+│   │   │   │   │   ├── backend.tf      # key: dev/resources/network/dev-vpc/terraform.tfstate
+│   │   │   │   │   ├── main.tf         # data source로 dev-vpc 읽어 State 관리
+│   │   │   │   │   ├── variables.tf
+│   │   │   │   │   └── outputs.tf
+│   │   │   │   ├── dev-vpc/   # dev-vpc 전용 (예정)
+│   │   │   │   └── prod-ai-platform-vpc/  # prod-ai-platform-vpc 전용 (예정)
 │   │   │   │
 │   │   │   └── elb/            # ELB 루트 모듈
 │   │   │       ├── terraform.tf

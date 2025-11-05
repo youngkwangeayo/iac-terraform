@@ -31,64 +31,39 @@
 
 ---
 
-### 🎯 우선순위 1: Network State 생성
+### ✅ 완료: Network State 생성 (dev-vpc)
 
 **목적**: 기존 VPC, Subnet 정보를 data source로 읽어 State에 저장
 
-**작업 상세:**
+**완료 내용:**
 
-1. **사전 확인**
-   - AWS Console에서 실제 VPC ID 확인
-   - AWS Console에서 실제 Subnet ID 확인
+1. **VPC 정보 확인 완료**
+   - VPC: dev-vpc (vpc-276cc74c)
+   - CIDR: 172.31.0.0/16
+   - Region: ap-northeast-2
 
-2. **variables.tf 업데이트** (필요 시)
-   ```bash
-   cd infra/dev/resources/network
-   
-   # variables.tf에 VPC ID, Subnet Tag 등이 정의되어 있는지 확인
-   # 없으면 추가 필요
-   ```
+2. **main.tf 개선**
+   - VPC의 모든 Subnet 자동 참조 (`data.aws_subnets`)
+   - Private/Public Subnet 자동 필터링 (Name 태그 기반)
+   - Private Subnet 7개 인식
+   - Public Subnet 3개 인식
 
-3. **Terraform 실행**
-   ```bash
-   cd infra/dev/resources/network
-   
-   # 1. 초기화
-   terraform init
-   
-   # 2. 구문 검증
-   terraform validate
-   # Expected: Success! The configuration is valid.
-   
-   # 3. 실행 계획 확인
-   terraform plan
-   # Expected: data source만 읽고 리소스 생성 없음
-   # 확인 사항:
-   # - data.aws_vpc.main이 실제 VPC를 찾는가?
-   # - data.aws_subnets.main이 실제 Subnet을 찾는가?
-   
-   # 4. 배포 (State 생성)
-   terraform apply
-   # State에 VPC, Subnet 정보 저장
-   
-   # 5. 출력 확인
-   terraform output
-   # vpc_id, subnet_ids가 올바르게 출력되는지 확인
-   ```
+3. **Terraform 배포 완료**
+   - ✅ terraform validate 성공
+   - ✅ terraform plan 성공
+   - ✅ terraform apply 성공
+   - ✅ S3 Backend에 State 저장 (`s3://nextpay-terraform-state/dev/resources/network/`)
 
-**완료 조건:**
-- [ ] VPC data source 동작 확인
-- [ ] Subnet data source 동작 확인
-- [ ] State 파일에 네트워크 정보 저장 완료
-- [ ] outputs가 올바르게 출력됨
-
-**문제 해결:**
-- VPC를 찾지 못하면: variables.tf에서 VPC 필터 조건 수정
-- Subnet을 찾지 못하면: Tag 기반 필터 조건 확인
+4. **Output 확인**
+   - vpc_id, vpc_name, vpc_cidr
+   - all_subnet_ids (10개)
+   - private_subnet_ids (7개)
+   - public_subnet_ids (3개)
+   - private_subnet_details, public_subnet_details
 
 ---
 
-### 🎯 우선순위 2: ELB State 생성
+### 🎯 우선순위 1: ELB State 생성
 
 **목적**: 기존 ALB, HTTPS Listener 정보를 data source로 읽어 State에 저장
 
@@ -131,7 +106,7 @@
 
 ---
 
-### 🎯 우선순위 3: IAM Role 생성
+### 🎯 우선순위 2: IAM Role 생성
 
 **목적**: ECS Task 실행에 필요한 IAM Role 생성
 
@@ -208,7 +183,7 @@ aws iam get-role --role-name ecsTaskRole --query 'Role.Arn'
 
 ---
 
-### 🎯 우선순위 4: ECR 이미지 푸시
+### 🎯 우선순위 3: ECR 이미지 푸시
 
 **목적**: CMS 컨테이너 이미지를 ECR에 푸시
 
@@ -260,7 +235,7 @@ aws iam get-role --role-name ecsTaskRole --query 'Role.Arn'
 
 ---
 
-### 🎯 우선순위 5: CMS 프로젝트 배포
+### 🎯 우선순위 4: CMS 프로젝트 배포
 
 **목적**: ECS 기반 CMS 애플리케이션 전체 스택 배포
 
@@ -379,6 +354,26 @@ infra/
 ---
 
 ## ✅ 완료된 작업 (역순)
+
+### 2025-11-05: Network 디렉토리 구조 최종 확정 (환경별 VPC 관리)
+- [x] VPC 매핑 전략 수립 및 문서화
+  - dev/resources/network/nextpay/ → dev-vpc
+  - prod/resources/network/nextpay/ → nextpay1-vpc (향후)
+  - prod/resources/network/ai-platform/ → prod-ai-platform-vpc (향후)
+- [x] 디렉토리 이름 변경: `dev-vpc` → `nextpay`
+- [x] backend.tf key 경로: `dev/resources/network/nextpay/terraform.tfstate`
+- [x] Subnet 필터링 개선: 소문자 `private`, `public` 매칭
+- [x] S3 Backend State 마이그레이션 완료
+- [x] cms 모듈의 remote state 참조 경로 수정
+- [x] 이전 경로 State 파일 정리 (dev-vpc/, terraform.tfstate)
+- [x] README.md VPC 매핑 테이블 및 전략 문서화
+
+### 2025-11-05: Network State 생성 완료 (dev-vpc)
+- [x] dev-vpc (vpc-276cc74c) 정보 확인
+- [x] main.tf 개선: 자동 Subnet 참조 및 Private/Public 분류
+- [x] terraform apply 성공
+- [x] S3 Backend에 State 저장 완료
+- [x] Private 7개, Public 3개 Subnet 자동 인식
 
 ### 2025-11-05: S3 Backend 연동 완료
 - [x] 3개 루트 모듈 backend.tf 업데이트
