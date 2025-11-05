@@ -1,9 +1,9 @@
 terraform {
   backend "s3" {
-    bucket         = "terraform-state-dev-cms"
+    bucket         = "nextpay-terraform-state"
     key            = "dev/resources/elb/terraform.tfstate"
     region         = "ap-northeast-2"
-    dynamodb_table = "terraform-lock-dev"
+    dynamodb_table = "nextpay-terraform-locks"
     encrypt        = true
   }
 }

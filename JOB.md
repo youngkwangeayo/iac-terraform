@@ -2,74 +2,36 @@
 
 ## 📌 다음 세션에서 할 작업 (우선순위 순)
 
-### 🎯 우선순위 1: S3 Backend 설정
+### ✅ 완료: S3 Backend 연동 확인
 
-**목적**: Terraform State를 S3에 저장하고 DynamoDB로 State Lock 구현
+**목적**: 각 루트 모듈이 생성된 Backend를 올바르게 사용하도록 설정 확인
 
-**작업 상세:**
+**✅ 완료된 작업:**
+- S3 Bucket: `nextpay-terraform-state` (생성 완료)
+- DynamoDB Table: `nextpay-terraform-locks` (생성 완료)
+- 암호화: SSE-KMS with Bucket Key
+- Versioning: Enabled
+- 위치: `bootstrap/backend/` 디렉토리
 
-1. **S3 Bucket 생성**
-   ```bash
-   # AWS Console 또는 AWS CLI로 생성
-   aws s3api create-bucket \
-     --bucket terraform-state-dev-cms \
-     --region ap-northeast-2 \
-     --create-bucket-configuration LocationConstraint=ap-northeast-2
-   
-   # Versioning 활성화
-   aws s3api put-bucket-versioning \
-     --bucket terraform-state-dev-cms \
-     --versioning-configuration Status=Enabled
-   
-   # 암호화 활성화
-   aws s3api put-bucket-encryption \
-     --bucket terraform-state-dev-cms \
-     --server-side-encryption-configuration '{
-       "Rules": [{
-         "ApplyServerSideEncryptionByDefault": {
-           "SSEAlgorithm": "AES256"
-         }
-       }]
-     }'
-   ```
+**완료 내용:**
 
-2. **DynamoDB Table 생성**
-   ```bash
-   # State Lock용 테이블 생성
-   aws dynamodb create-table \
-     --table-name terraform-state-lock \
-     --attribute-definitions AttributeName=LockID,AttributeType=S \
-     --key-schema AttributeName=LockID,KeyType=HASH \
-     --billing-mode PAY_PER_REQUEST \
-     --region ap-northeast-2
-   ```
+1. **Backend 설정 업데이트 완료**
+   - ✅ `infra/dev/resources/network/backend.tf` 업데이트
+   - ✅ `infra/dev/resources/elb/backend.tf` 업데이트
+   - ✅ `infra/dev/projects/cms/backend.tf` 업데이트
 
-3. **Backend 설정 확인**
-   - `infra/dev/resources/network/backend.tf`
-   - `infra/dev/resources/elb/backend.tf`
-   - `infra/dev/projects/cms/backend.tf`
-   
-   각 파일에 다음 형식으로 작성되어 있는지 확인:
-   ```hcl
-   terraform {
-     backend "s3" {
-       bucket         = "terraform-state-dev-cms"
-       key            = "dev/resources/network/terraform.tfstate"
-       region         = "ap-northeast-2"
-       dynamodb_table = "terraform-state-lock"
-       encrypt        = true
-     }
-   }
-   ```
+   변경 사항:
+   - Bucket: `terraform-state-dev-cms` → `nextpay-terraform-state`
+   - DynamoDB: `terraform-lock-dev` → `nextpay-terraform-locks`
 
-**완료 조건:**
-- [ ] S3 Bucket 생성 및 설정 완료
-- [ ] DynamoDB Table 생성 완료
-- [ ] Backend 설정 파일 확인 완료
+2. **Backend 초기화 성공**
+   - ✅ network 모듈: `terraform init` 성공
+   - ✅ elb 모듈: `terraform init` 성공
+   - ✅ cms 모듈: `terraform init` 성공
 
 ---
 
-### 🎯 우선순위 2: Network State 생성
+### 🎯 우선순위 1: Network State 생성
 
 **목적**: 기존 VPC, Subnet 정보를 data source로 읽어 State에 저장
 
@@ -126,7 +88,7 @@
 
 ---
 
-### 🎯 우선순위 3: ELB State 생성
+### 🎯 우선순위 2: ELB State 생성
 
 **목적**: 기존 ALB, HTTPS Listener 정보를 data source로 읽어 State에 저장
 
@@ -169,7 +131,7 @@
 
 ---
 
-### 🎯 우선순위 4: IAM Role 생성
+### 🎯 우선순위 3: IAM Role 생성
 
 **목적**: ECS Task 실행에 필요한 IAM Role 생성
 
@@ -246,7 +208,7 @@ aws iam get-role --role-name ecsTaskRole --query 'Role.Arn'
 
 ---
 
-### 🎯 우선순위 5: ECR 이미지 푸시
+### 🎯 우선순위 4: ECR 이미지 푸시
 
 **목적**: CMS 컨테이너 이미지를 ECR에 푸시
 
@@ -298,7 +260,7 @@ aws iam get-role --role-name ecsTaskRole --query 'Role.Arn'
 
 ---
 
-### 🎯 우선순위 6: CMS 프로젝트 배포
+### 🎯 우선순위 5: CMS 프로젝트 배포
 
 **목적**: ECS 기반 CMS 애플리케이션 전체 스택 배포
 
@@ -417,6 +379,20 @@ infra/
 ---
 
 ## ✅ 완료된 작업 (역순)
+
+### 2025-11-05: S3 Backend 연동 완료
+- [x] 3개 루트 모듈 backend.tf 업데이트
+  - network, elb, cms 모듈 모두 `nextpay-terraform-state` 사용
+- [x] terraform init 성공 확인 (3개 모듈)
+
+### 2025-11-05: Terraform Backend 구축 완료
+- [x] S3 Bucket 생성 (`nextpay-terraform-state`)
+  - Versioning, Public Access Block, SSE-KMS 암호화 설정
+  - Lifecycle 정책 (30일 후 Glacier)
+- [x] DynamoDB Table 생성 (`nextpay-terraform-locks`)
+  - PAY_PER_REQUEST 모드, PITR 활성화
+- [x] bootstrap/backend 디렉토리 구성
+- [x] README.md 및 JOB.md 문서 업데이트
 
 ### 2025-11-04: README.md 및 JOB.md 구조 개선
 - [x] README.md에 "현재 상태" 섹션 추가

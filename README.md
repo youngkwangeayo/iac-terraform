@@ -57,46 +57,48 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 - [x] `infra/dev/resources/elb` - ALB data source
 - [x] `infra/dev/projects/cms` - CMS 프로젝트 전체 스택
 
+#### 5. Terraform Backend 구축 및 연동
+- [x] S3 Bucket (`nextpay-terraform-state`) 생성
+- [x] DynamoDB Table (`nextpay-terraform-locks`) 생성
+- [x] 3개 루트 모듈 backend.tf 설정 완료
+- [x] terraform init 성공 확인
+
 ### 🔄 다음 작업 (우선순위 순)
 
-#### 1. S3 Backend 설정
-- [ ] S3 Bucket 생성 (Terraform State 저장용)
-- [ ] DynamoDB Table 생성 (State Lock용)
-- [ ] Backend 설정 파일 업데이트
-
-#### 2. Network State 생성
+#### 1. Network State 생성
 - [ ] `infra/dev/resources/network` 배포
   - VPC, Subnet data source 동작 확인
   - State에 네트워크 정보 저장
 
-#### 3. ELB State 생성
+#### 2. ELB State 생성
 - [ ] `infra/dev/resources/elb` 배포
   - ALB, HTTPS Listener data source 동작 확인
   - State에 ELB 정보 저장
 
-#### 4. IAM Role 생성
+#### 3. IAM Role 생성
 - [ ] ecsTaskRole 생성
 - [ ] ecsTaskExecutionRole 생성
 
-#### 5. ECR 이미지 푸시
+#### 4. ECR 이미지 푸시
 - [ ] Docker 이미지 빌드
 - [ ] ECR에 이미지 푸시
 
-#### 6. CMS 프로젝트 배포
+#### 5. CMS 프로젝트 배포
 - [ ] `infra/dev/projects/cms` 배포
   - Remote State 참조 확인
   - ECS 전체 스택 배포
 
 ### 📊 진행률
 
-**Phase 2 (ECS 배포 환경 구축): 70% 완료**
+**Phase 2 (ECS 배포 환경 구축): 80% 완료**
 
 - ✅ 모듈 개발 (100%)
 - ✅ 모듈 테스트 (100%)
 - ✅ 루트 모듈 작성 (100%)
-- 🔄 인프라 배포 (0%)
-  - Backend 설정
-  - State 생성
+- 🔄 인프라 배포 (50%)
+  - ✅ Backend 설정 (S3 + DynamoDB)
+  - ✅ Backend 연동 확인 (terraform init)
+  - 🔄 State 생성 (network, elb)
   - 실제 리소스 배포
 
 
