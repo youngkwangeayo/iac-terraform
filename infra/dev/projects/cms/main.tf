@@ -12,12 +12,12 @@ data "terraform_remote_state" "network" {
   }
 }
 
-# ELB 정보 참조
+# ELB 정보 참조 (nextpay ELB)
 data "terraform_remote_state" "elb" {
   backend = "s3"
   config = {
     bucket = "nextpay-terraform-state"
-    key    = "dev/resources/elb/terraform.tfstate"
+    key    = "dev/resources/elb/nextpay/terraform.tfstate"
     region = var.aws_region
   }
 }

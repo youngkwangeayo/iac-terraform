@@ -1,3 +1,13 @@
+# Network State 참조 (dev-vpc)
+data "terraform_remote_state" "network" {
+  backend = "s3"
+  config = {
+    bucket = "nextpay-terraform-state"
+    key    = "dev/resources/network/nextpay/terraform.tfstate"
+    region = var.aws_region
+  }
+}
+
 # 기존 ALB 참조
 data "aws_lb" "main" {
   name = var.alb_name

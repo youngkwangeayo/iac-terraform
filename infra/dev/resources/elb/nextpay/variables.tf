@@ -5,9 +5,9 @@ variable "aws_region" {
 }
 
 variable "alb_name" {
-  description = "Name of the existing Application Load Balancer"
+  description = "Name of the existing Application Load Balancer (dev-cms-elb for dev environment)"
   type        = string
-  default     = "alb-dev"  # 실제 ALB 이름으로 변경 필요
+  default     = "dev-cms-elb"
 }
 
 variable "create_target_group" {
