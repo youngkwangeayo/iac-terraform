@@ -58,18 +58,6 @@ variable "health_check_path" {
   default     = "/api/ping"
 }
 
-variable "task_role_arn" {
-  description = "IAM role ARN for ECS task"
-  type        = string
-  default     = "arn:aws:iam::365485194891:role/ecsTaskRole"
-}
-
-variable "execution_role_arn" {
-  description = "IAM role ARN for ECS task execution"
-  type        = string
-  default     = "arn:aws:iam::365485194891:role/ecsTaskExecutionRole"
-}
-
 variable "alb_listener_rule_priority" {
   description = "Priority for ALB listener rule"
   type        = number

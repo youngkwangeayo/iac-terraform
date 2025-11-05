@@ -22,6 +22,16 @@ data "terraform_remote_state" "elb" {
   }
 }
 
+# IAM Role 정보 참조 (ECS Roles)
+data "terraform_remote_state" "iam" {
+  backend = "s3"
+  config = {
+    bucket = "nextpay-terraform-state"
+    key    = "dev/resources/iam/ecs-roles/terraform.tfstate"
+    region = var.aws_region
+  }
+}
+
 # ============================================================================
 # 공통 네이밍 및 태그 모듈
 # ============================================================================
@@ -33,10 +43,20 @@ module "common" {
   project_name = var.project_name
 }
 
+# ECR용 네이밍 (네이밍 규칙: ecr-{environment}-{project_name})
+module "common_ecr" {
+  source = "../../../modules/common"
+
+  environment  = var.environment
+  project_name = var.project_name
+  aws_service  = "ecr"
+}
+
 # 로컬 변수 (모듈에서 가져온 값 사용)
 locals {
-  name_prefix = module.common.name_prefix
-  common_tags = module.common.common_tags
+  name_prefix     = module.common.name_prefix
+  ecr_name_prefix = module.common_ecr.service_prefix
+  common_tags     = module.common.common_tags
 }
 
 # ============================================================================
@@ -46,7 +66,7 @@ locals {
 module "ecr" {
   source = "../../../modules/ecr"
 
-  repository_name      = local.name_prefix
+  repository_name      = local.ecr_name_prefix
   image_tag_mutability = "MUTABLE"
   scan_on_push         = true
 
@@ -205,8 +225,8 @@ module "ecs_task_definition" {
   memory                   = var.task_memory
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  task_role_arn            = var.task_role_arn
-  execution_role_arn       = var.execution_role_arn
+  task_role_arn            = data.terraform_remote_state.iam.outputs.ecs_task_role_arn
+  execution_role_arn       = data.terraform_remote_state.iam.outputs.ecs_task_execution_role_arn
 
   container_definitions = jsonencode([
     {
