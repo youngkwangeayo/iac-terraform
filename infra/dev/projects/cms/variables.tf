@@ -31,7 +31,7 @@ variable "container_image" {
 variable "container_image_tag" {
   description = "Container image tag"
   type        = string
-  default     = "2.156.0-dev-6"
+  default     = "2.156.0-dev-7"
 }
 
 variable "task_cpu" {
