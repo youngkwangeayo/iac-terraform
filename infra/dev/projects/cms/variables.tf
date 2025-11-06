@@ -75,3 +75,39 @@ variable "route53_zone_id" {
   type        = string
   default     = "Z075035514XCM0YECN764"
 }
+
+variable "autoscaling_min_capacity" {
+  description = "Minimum number of tasks for autoscaling"
+  type        = number
+  default     = 1
+}
+
+variable "autoscaling_max_capacity" {
+  description = "Maximum number of tasks for autoscaling"
+  type        = number
+  default     = 3
+}
+
+variable "autoscaling_metric_type" {
+  description = "Predefined metric type for autoscaling (ECSServiceAverageCPUUtilization, ECSServiceAverageMemoryUtilization)"
+  type        = string
+  default     = "ECSServiceAverageCPUUtilization"
+}
+
+variable "autoscaling_target_value" {
+  description = "Target value for the autoscaling metric"
+  type        = number
+  default     = 70.0
+}
+
+variable "autoscaling_scale_in_cooldown" {
+  description = "Time between scale in actions in seconds"
+  type        = number
+  default     = 120
+}
+
+variable "autoscaling_scale_out_cooldown" {
+  description = "Time between scale out actions in seconds"
+  type        = number
+  default     = 60
+}

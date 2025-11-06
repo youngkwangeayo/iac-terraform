@@ -340,3 +340,24 @@ module "ecs_service" {
 
   tags = local.common_tags
 }
+
+# ============================================================================
+# ECS Autoscaling
+# ============================================================================
+
+module "ecs_autoscaling" {
+  source = "../../../modules/ecs/ecs-autoscaling"
+
+  cluster_name = module.ecs_cluster.cluster_name
+  service_name = module.ecs_service.service_name
+
+  min_capacity = var.autoscaling_min_capacity
+  max_capacity = var.autoscaling_max_capacity
+
+  policy_name            = "autoScale-${local.name_prefix}"
+  predefined_metric_type = var.autoscaling_metric_type
+  target_value           = var.autoscaling_target_value
+  scale_in_cooldown      = var.autoscaling_scale_in_cooldown
+  scale_out_cooldown     = var.autoscaling_scale_out_cooldown
+  disable_scale_in       = false
+}
