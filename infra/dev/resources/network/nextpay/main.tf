@@ -25,7 +25,7 @@ locals {
   private_subnets = {
     for id, subnet in data.aws_subnet.details :
     id => subnet
-    if can(regex(".*private.*", lower(lookup(subnet.tags, "Name", ""))))
+    if can(regex(".*private.*", lower(lookup(subnet.tags, "Name", "")))) && !can(regex(".*pvt.*", lower(lookup(subnet.tags, "Name", ""))))
   }
 
   public_subnets = {

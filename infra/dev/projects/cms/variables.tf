@@ -31,7 +31,7 @@ variable "container_image" {
 variable "container_image_tag" {
   description = "Container image tag"
   type        = string
-  default     = "latest"
+  default     = "2.156.0-dev-6"
 }
 
 variable "task_cpu" {
@@ -55,17 +55,23 @@ variable "desired_count" {
 variable "health_check_path" {
   description = "Health check path"
   type        = string
-  default     = "/api/ping"
+  default     = "/command/checkHealth"
 }
 
 variable "alb_listener_rule_priority" {
   description = "Priority for ALB listener rule"
   type        = number
-  default     = 100
+  default     = 250
 }
 
-variable "alb_listener_rule_path_pattern" {
-  description = "Path pattern for ALB listener rule"
-  type        = list(string)
-  default     = ["/cms/*"]
+variable "alb_listener_rule_host_header" {
+  description = "Host header for ALB listener rule"
+  type        = string
+  default     = "cms-dev.nextpay.co.kr"
+}
+
+variable "route53_zone_id" {
+  description = "Route53 Hosted Zone ID for nextpay.co.kr"
+  type        = string
+  default     = "Z075035514XCM0YECN764"
 }

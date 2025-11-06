@@ -103,7 +103,7 @@ module "ecr" {
 module "ecs_security_group" {
   source = "../../../modules/security-group"
 
-  name        = "sg-${local.name_prefix}"
+  name        = "${local.name_prefix}-ecs-sg"
   description = "Security group for CMS ECS tasks"
   vpc_id      = data.terraform_remote_state.network.outputs.vpc_id
 
@@ -112,8 +112,8 @@ module "ecs_security_group" {
       from_port       = var.container_port
       to_port         = var.container_port
       protocol        = "tcp"
-      security_groups = data.terraform_remote_state.elb.outputs.security_groups
-      description     = "Allow traffic from ALB"
+      security_groups = ["sg-0d856c4c37acc59c5"]
+      description     = "Allow traffic from specified SG"
     }
   ]
 
@@ -172,12 +172,26 @@ resource "aws_lb_listener_rule" "https" {
   }
 
   condition {
-    path_pattern {
-      values = var.alb_listener_rule_path_pattern
+    host_header {
+      values = [var.alb_listener_rule_host_header]
     }
   }
 
   tags = local.common_tags
+}
+
+# ============================================================================
+# Route53 DNS Record
+# ============================================================================
+
+module "route53_record" {
+  source = "../../../modules/route53-record"
+
+  zone_id = var.route53_zone_id
+  name    = var.alb_listener_rule_host_header
+  type    = "CNAME"
+  ttl     = 300
+  records = [data.terraform_remote_state.elb.outputs.alb_dns_name]
 }
 
 # ============================================================================
@@ -239,12 +253,8 @@ module "ecs_task_definition" {
 
       environment = [
         {
-          name  = "PORT"
-          value = tostring(var.container_port)
-        },
-        {
-          name  = "ENVIRONMENT"
-          value = var.environment
+          name  = "NODE_ENV"
+          value = "dev"
         }
       ]
 
@@ -303,7 +313,7 @@ module "ecs_service" {
 
   network_configuration = {
     subnets          = data.terraform_remote_state.network.outputs.private_subnet_ids
-    security_groups  = [module.ecs_security_group.security_group_id]
+    security_groups  = [module.ecs_security_group.security_group_id, "sg-0d856c4c37acc59c5"]
     assign_public_ip = true
   }
 
