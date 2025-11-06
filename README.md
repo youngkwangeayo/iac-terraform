@@ -86,27 +86,44 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 - [x] terraform apply 완료 (태그만 추가, 정책 유지)
 - [x] S3 Backend State 저장 (`dev/resources/iam/ecs-roles/terraform.tfstate`)
 
+#### 9. CMS 프로젝트 1차 배포 완료
+- [x] Route53 레코드 모듈 개발 (`infra/modules/route53-record/`)
+- [x] CMS DNS 레코드 생성 (`cms-dev.nextpay.co.kr`)
+- [x] Security Group 모듈 개선 (Protocol -1 포트 처리)
+- [x] Network 모듈: Pvt 서브넷 제외, NAT Gateway 있는 Private 서브넷만 사용
+- [x] CMS 헬스체크 경로: `/command/checkHealth`
+- [x] ECS Service 배포 완료 (Task Running)
+- [x] Task Definition Revision 4
+
 ### 🔄 다음 작업 (우선순위 순)
 
-#### 1. CMS 프로젝트 배포
-- [ ] `infra/dev/projects/cms` 배포
-  - Remote State 참조 확인
-  - ECS 전체 스택 배포
+#### 1. Variables 리팩토링 (tfvars 기반 운영)
+- [ ] 모듈 variables.tf의 불필요한 default 값 제거
+- [ ] 프로젝트/리소스 variables.tf의 불필요한 default 값 제거
+- [ ] terraform.tfvars 파일 생성 및 적용
+- [ ] 재사용 편의성 개선
+
+#### 2. 민감정보 관리 개선
+- [ ] AWS Secrets Manager 또는 SSM Parameter Store 적용
+- [ ] Task Definition secrets 필드 활용
+- [ ] 환경변수 외부화
 
 ### 📊 진행률
 
-**Phase 2 (ECS 배포 환경 구축): 95% 완료**
+**Phase 2 (ECS 배포 환경 구축): 100% 완료** ✅
 
 - ✅ 모듈 개발 (100%)
+  - Route53 Record 모듈 추가
+  - Security Group 모듈 개선
 - ✅ 모듈 테스트 (100%)
 - ✅ 루트 모듈 작성 (100%)
-- 🔄 인프라 배포 (95%)
+- ✅ 인프라 배포 (100%)
   - ✅ Backend 설정 (S3 + DynamoDB)
   - ✅ Backend 연동 확인 (terraform init)
-  - ✅ Network State 생성 (dev-vpc)
+  - ✅ Network State 생성 (dev-vpc, NAT Gateway 있는 서브넷만)
   - ✅ ELB State 생성 (dev-cms-elb)
   - ✅ IAM Role Terraform 관리 전환
-  - 🔄 실제 리소스 배포 (ECR 이미지, CMS 프로젝트)
+  - ✅ CMS 프로젝트 1차 배포 완료
 
 
 ## 네이밍 규칙

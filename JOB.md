@@ -2,121 +2,131 @@
 
 ## 📌 다음 세션에서 할 작업 (우선순위 순)
 
-### 🎯 우선순위 1: ECR 이미지 푸시
+### 🎯 우선순위 1: Variables 리팩토링 (tfvars 기반 운영)
 
-**목적**: CMS 컨테이너 이미지를 ECR에 푸시
-
-**사전 조건:**
-- ECR Repository가 생성되어 있어야 함 (CMS 배포 시 자동 생성됨)
-- 또는 먼저 ECR만 생성하려면:
-  ```bash
-  cd infra/dev/projects/cms
-  terraform apply -target=module.ecr
-  ```
+**목적**: 재사용성 향상 및 tfvars 파일로 간편한 배포 환경 구축
 
 **작업 상세:**
 
-1. **ECR 로그인**
-   ```bash
-   aws ecr get-login-password --region ap-northeast-2 | \
-     docker login --username AWS --password-stdin \
-     365485194891.dkr.ecr.ap-northeast-2.amazonaws.com
-   ```
+#### 1. 모듈 variables.tf 정리
+```bash
+# 각 모듈에서 불필요한 default 값 제거
+infra/modules/
+├── common/variables.tf          # default 제거
+├── ecr/variables.tf              # default 제거
+├── security-group/variables.tf  # default 제거
+├── target-group/variables.tf    # default 제거
+├── ecs/
+│   ├── ecs-cluster/variables.tf
+│   ├── ecs-task-definition/variables.tf
+│   └── ecs-service/variables.tf
+└── route53-record/variables.tf
+```
 
-2. **Docker 이미지 빌드**
-   ```bash
-   # CMS 애플리케이션 디렉토리로 이동
-   cd /path/to/cms/app
+#### 2. 프로젝트/리소스 variables.tf 정리
+```bash
+# 프로젝트와 리소스 루트 모듈에서 default 값 제거
+infra/dev/
+├── projects/cms/
+│   ├── variables.tf      # default 값 제거
+│   └── terraform.tfvars  # 실제 값 정의
+└── resources/
+    ├── network/nextpay/
+    ├── elb/nextpay/
+    └── iam/ecs-roles/
+```
 
-   # 이미지 빌드
-   docker build -t dev-cms:latest .
-   ```
-
-3. **이미지 태그 및 푸시**
-   ```bash
-   # ECR Repository URL 확인
-   ECR_URL=$(cd infra/dev/projects/cms && terraform output -raw ecr_repository_url)
-
-   # 이미지 태그
-   docker tag dev-cms:latest $ECR_URL:latest
-   docker tag dev-cms:latest $ECR_URL:v1.0.0
-
-   # 이미지 푸시
-   docker push $ECR_URL:latest
-   docker push $ECR_URL:v1.0.0
-   ```
+#### 3. terraform.tfvars 파일 생성
+```hcl
+# infra/dev/projects/cms/terraform.tfvars
+project_name     = "cms"
+environment      = "dev"
+container_port   = 3827
+container_image_tag = "latest"
+health_check_path = "/command/checkHealth"
+# ... 필요한 모든 변수
+```
 
 **완료 조건:**
-- [ ] ECR 로그인 성공
-- [ ] Docker 이미지 빌드 완료
-- [ ] 이미지 푸시 완료
-- [ ] ECR Console에서 이미지 확인
+- [ ] 모듈 variables.tf에서 default 제거
+- [ ] 프로젝트 variables.tf에서 default 제거
+- [ ] terraform.tfvars 파일 생성
+- [ ] .gitignore에 *.tfvars 패턴 추가 (민감정보 보호)
+- [ ] 샘플 tfvars.example 파일 생성
+
+**기대 효과:**
+- tfvars 파일만 수정하여 빠른 배포
+- 모듈 재사용성 극대화
+- 환경별 설정 관리 용이
 
 ---
 
-### 🎯 우선순위 2: CMS 프로젝트 배포
+### 🎯 우선순위 2: 민감정보 관리 개선
 
-**목적**: ECS 기반 CMS 애플리케이션 전체 스택 배포
+**목적**: 민감정보를 안전하게 관리
 
-**사전 조건 확인:**
-- [x] Network State 생성 완료
-- [x] ELB State 생성 완료
-- [x] IAM Role 생성 완료
-- [ ] ECR 이미지 푸시 완료
+**작업 방안:**
 
-**작업 상세:**
+1. **SSM Parameter Store 사용**
+```bash
+# Parameter 생성
+aws ssm put-parameter \
+  --name "/cms/dev/slack-api-token" \
+  --value "xoxb-..." \
+  --type "SecureString"
+```
 
-1. **variables.tf 확인 및 수정**
-   ```bash
-   cd infra/dev/projects/cms
-
-   # variables.tf에서 다음 값들 확인:
-   # - task_role_arn: arn:aws:iam::365485194891:role/ecsTaskRole
-   # - execution_role_arn: arn:aws:iam::365485194891:role/ecsTaskExecutionRole
-   # - container_image: ECR 이미지 URL
-   ```
-
-2. **Terraform 실행**
-   ```bash
-   # 1. 초기화
-   terraform init
-
-   # 2. 구문 검증
-   terraform validate
-
-   # 3. 실행 계획 확인
-   terraform plan
-
-   # 4. 배포
-   terraform apply
-
-   # 5. 출력 확인
-   terraform output
-   ```
-
-3. **배포 확인**
-   ```bash
-   # ECS 서비스 상태 확인
-   aws ecs describe-services \
-     --cluster dev-cms-cluster \
-     --services dev-cms-service
-
-   # Task 상태 확인
-   aws ecs list-tasks \
-     --cluster dev-cms-cluster \
-     --service-name dev-cms-service
-   ```
+2. **Task Definition에서 참조**
+```hcl
+# ECS Task Definition
+secrets = [
+  {
+    name      = "SLACK_API_TOKEN"
+    valueFrom = "arn:aws:ssm:ap-northeast-2:...:parameter/cms/dev/slack-api-token"
+  }
+]
+```
 
 **완료 조건:**
-- [ ] Terraform apply 성공
-- [ ] ECS Service Running
-- [ ] Task 정상 실행
-- [ ] Health Check 통과
-- [ ] 애플리케이션 접근 가능
+- [ ] 민감정보를 SSM Parameter Store로 이동
+- [ ] Task Definition secrets 필드 적용
+- [ ] 코드에서 민감정보 완전 제거
 
 ---
 
 ## ✅ 완료된 작업 (역순)
+
+### 2025-11-06: CMS 프로젝트 1차 배포 완료
+- [x] Route53 레코드 모듈 생성 (`infra/modules/route53-record/`)
+- [x] CMS DNS 레코드 생성 (`cms-dev.nextpay.co.kr` → ALB CNAME)
+- [x] Security Group 모듈 개선
+  - Protocol `-1` 사용 시 포트를 `null`로 자동 처리
+- [x] Network 서브넷 필터링 개선
+  - Pvt 서브넷 제외 (NAT Gateway 없음)
+  - Private 서브넷만 사용 (NAT Gateway 있음, 3개)
+- [x] CMS 헬스체크 경로 변경: `/command/checkHealth`
+- [x] CMS Security Group 설정
+  - Ingress: Port 3827, sg-0d856c4c37acc59c5에서만 허용
+  - Egress: 모든 트래픽 허용
+  - ECS Task에 2개 SG 연결
+- [x] Task Definition 환경변수 33개 설정 (민감정보 제외)
+- [x] ECS Service 배포 완료
+  - Running Count: 1
+  - Task Definition Revision: 4
+  - Private Subnet 배포 (NAT Gateway 사용)
+- [x] Git Push Protection 해결 (민감정보 제거 후 히스토리 정리)
+
+**배포된 리소스:**
+- ECR Repository: `ecr-dev-cms`
+- Security Group: `dev-cms-ecs-sg`
+- Target Group: `tg-dev-cms` (Port 3827)
+- ALB Listener Rule: Priority 250, Host Header `cms-dev.nextpay.co.kr`
+- Route53 CNAME: `cms-dev.nextpay.co.kr` → ALB
+- ECS Cluster: `cluster-dev-cms`
+- ECS Service: `service-dev-cms` (RUNNING)
+- CloudWatch Log Group: `/ecs/dev-cms`
+
+---
 
 ### 2025-11-05: IAM Role Terraform 관리 전환 완료
 - [x] 기존 IAM Role 정책 확인 (ecsTaskExecutionRole, ecsTaskRole)
