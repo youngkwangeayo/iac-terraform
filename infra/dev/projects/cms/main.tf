@@ -252,9 +252,9 @@ module "ecs_task_definition" {
       ]
 
       environment = [
-        {
-          name  = "NODE_ENV"
-          value = "dev"
+        for k, v in var.environment_vars : {
+          name  = k
+          value = v
         }
       ]
 

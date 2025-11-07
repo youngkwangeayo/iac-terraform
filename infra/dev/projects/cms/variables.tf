@@ -130,3 +130,12 @@ variable "autoscaling_scale_out_cooldown" {
   default     = 60
 }
 
+# ============================================================================
+# 환경변수 설정
+# ============================================================================
+variable "environment_vars" {
+  description = "Environment variables for the container (key-value pairs)"
+  type        = map(string)
+  default     = {}
+}
+
