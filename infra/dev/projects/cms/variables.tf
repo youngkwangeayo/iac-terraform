@@ -1,3 +1,6 @@
+# ============================================================================
+# 프로젝트 정보
+# ============================================================================
 variable "aws_region" {
   description = "AWS region"
   type        = string
@@ -7,67 +10,29 @@ variable "aws_region" {
 variable "project_name" {
   description = "Project name"
   type        = string
-  default     = "cms"
 }
 
 variable "environment" {
-  description = "Environment (dev, prod)"
+  description = "Environment (dev, stg, prod)"
   type        = string
-  default     = "dev"
+  nullable    = false
+  validation {
+    condition     = contains(["dev", "stg", "prod"], var.environment)
+    error_message = "dev, stg, prod 중 택1을 꼭 해주세요."
+  }
 }
 
-variable "container_port" {
-  description = "Container port for the application"
-  type        = number
-  default     = 3827
-}
-
-variable "container_image" {
-  description = "Container image URI (will be constructed from ECR)"
-  type        = string
-  default     = ""
-}
-
-variable "container_image_tag" {
-  description = "Container image tag"
-  type        = string
-  default     = "2.156.0-dev-7"
-}
-
-variable "task_cpu" {
-  description = "Task CPU units"
-  type        = string
-  default     = "512"
-}
-
-variable "task_memory" {
-  description = "Task memory in MiB"
-  type        = string
-  default     = "1024"
-}
-
-variable "desired_count" {
-  description = "Desired number of tasks"
-  type        = number
-  default     = 1
-}
-
-variable "health_check_path" {
-  description = "Health check path"
-  type        = string
-  default     = "/command/checkHealth"
-}
-
+# ============================================================================
+# 네트워크 설정
+# ============================================================================
 variable "alb_listener_rule_priority" {
   description = "Priority for ALB listener rule"
   type        = number
-  default     = 250
 }
 
 variable "alb_listener_rule_host_header" {
   description = "Host header for ALB listener rule"
   type        = string
-  default     = "cms-dev.nextpay.co.kr"
 }
 
 variable "route53_zone_id" {
@@ -76,16 +41,69 @@ variable "route53_zone_id" {
   default     = "Z075035514XCM0YECN764"
 }
 
+
+# ============================================================================
+# App 설정
+# ============================================================================
+variable "container_port" {
+  description = "Container port for the application"
+  type        = number
+  nullable = false
+}
+
+variable "container_image" {
+  description = "Container image URI (will be constructed from ECR)"
+  type        = string
+  default     = null
+}
+
+variable "container_image_tag" {
+  description = "Container image tag"
+  type        = string
+}
+
+variable "health_check_path" {
+  description = "Health check path"
+  type        = string
+  default     = "/"
+}
+
+variable "allowed_security_group_ids" {
+  # sg-0d856c4c37acc59c5
+  description = "기존에 생성된 sg id"
+  type        = string
+  default = null
+}
+
+# ============================================================================
+# 컴퓨팅 설정
+# ============================================================================
+variable "task_cpu" {
+  description = "Task CPU units"
+  type        = string
+}
+
+variable "task_memory" {
+  description = "Task memory in MiB"
+  type        = string
+}
+
+variable "desired_count" {
+  description = "Desired number of tasks"
+  type        = number
+}
+
+# ============================================================================
+# 오토스케일링 설정
+# ============================================================================
 variable "autoscaling_min_capacity" {
   description = "Minimum number of tasks for autoscaling"
   type        = number
-  default     = 1
 }
 
 variable "autoscaling_max_capacity" {
   description = "Maximum number of tasks for autoscaling"
   type        = number
-  default     = 3
 }
 
 variable "autoscaling_metric_type" {
@@ -111,3 +129,4 @@ variable "autoscaling_scale_out_cooldown" {
   type        = number
   default     = 60
 }
+

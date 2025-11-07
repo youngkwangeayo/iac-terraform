@@ -112,7 +112,7 @@ module "ecs_security_group" {
       from_port       = var.container_port
       to_port         = var.container_port
       protocol        = "tcp"
-      security_groups = ["sg-0d856c4c37acc59c5"]
+      security_groups = [var.allowed_security_group_ids]
       description     = "Allow traffic from specified SG"
     }
   ]
@@ -149,7 +149,7 @@ module "target_group" {
     port                = "traffic-port"
     protocol            = "HTTP"
     healthy_threshold   = 3
-    unhealthy_threshold = 3
+    unhealthy_threshold = 5
     timeout             = 5
     interval            = 30
     matcher             = "200"
@@ -237,7 +237,7 @@ module "ecs_task_definition" {
   container_definitions = jsonencode([
     {
       name      = var.project_name
-      image     = var.container_image != "" ? var.container_image : "${module.ecr.repository_url}:${var.container_image_tag}"
+      image     = var.container_image != null ? "${var.container_image}:${var.container_image_tag}" : "${module.ecr.repository_url}:${var.container_image_tag}"
       cpu       = 0
       essential = true
 
@@ -313,7 +313,7 @@ module "ecs_service" {
 
   network_configuration = {
     subnets          = data.terraform_remote_state.network.outputs.private_subnet_ids
-    security_groups  = [module.ecs_security_group.security_group_id, "sg-0d856c4c37acc59c5"]
+    security_groups  = [module.ecs_security_group.security_group_id, var.allowed_security_group_ids]
     assign_public_ip = true
   }
 
