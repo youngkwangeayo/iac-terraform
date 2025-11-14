@@ -19,8 +19,8 @@ module "ecs_task_definition" {
   memory                   = "1024"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  task_role_arn            = "arn:aws:iam::123456789012:role/ecsTaskRole"
-  execution_role_arn       = "arn:aws:iam::123456789012:role/ecsTaskExecutionRole"
+  task_role_arn            = "arn:aws:iam::xxxxxxxxxxxx:role/ecsTaskRole"
+  execution_role_arn       = "arn:aws:iam::xxxxxxxxxxxx:role/ecsTaskExecutionRole"
 
   container_definitions = jsonencode([
     {

@@ -8,9 +8,9 @@ environment  = "dev"
 # 네트워크 설정
 # ============================================================================
 alb_listener_rule_priority    = 250
-alb_listener_rule_host_header = "cms-dev.nextpay.co.kr"
-route53_zone_id               = "Z075035514XCM0YECN764"
-allowed_security_group_ids    = "sg-0d856c4c37acc59c5"
+alb_listener_rule_host_header = "domain.co.kr"
+route53_zone_id               = "*******14XCM0YECN764"
+allowed_security_group_ids    = "sg-******c4c37acc59c5"
 
 # ============================================================================
 # App 설정
@@ -36,6 +36,6 @@ autoscaling_max_capacity = 3
 # 환경변수 설정
 # ============================================================================
 environment_vars = {
-  NODE_ENV                   = "dev"
+  HELLO = WORLD
 }
 

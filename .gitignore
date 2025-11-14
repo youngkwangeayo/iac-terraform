@@ -1,12 +1,75 @@
-
-
-aws-def
-
+# ===========================
+# Terraform 관련 파일
+# ===========================
+# Terraform 플러그인 디렉토리
 .terraform/
-
-.claude
 .terraform.lock.hcl
-registry.terraform.io
+
+# Terraform Provider 캐시
+registry.terraform.io/
 registry.terraform.io/*
 
-bootstrap/backend/terraform.tfstate*
+# Terraform State 파일 (민감정보 포함)
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Terraform Variable 파일 (민감정보 포함 가능)
+# *.tfvars
+*.tfvars.json
+
+# Terraform Plan 파일
+*.tfplan
+
+# Terraform 충돌 파일
+*.terraform.tfstate.lock.info
+
+# ===========================
+# AWS 관련 파일
+# ===========================
+# AWS 설정 백업 파일
+aws-def/
+
+# ===========================
+# IDE 및 에디터 설정
+# ===========================
+# VSCode
+.vscode/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# ===========================
+# OS 관련 파일
+# ===========================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.nfs*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ===========================
+# Claude Code 관련
+# ===========================
+.claude/
+
+# ===========================
+# 기타
+# ===========================
+# 로그 파일
+*.log
+
+# 임시 파일
+*.tmp
+*.bak
+*.swp
+tmp-garbage/*

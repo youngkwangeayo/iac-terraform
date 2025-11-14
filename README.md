@@ -88,12 +88,18 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 
 #### 9. CMS 프로젝트 1차 배포 완료
 - [x] Route53 레코드 모듈 개발 (`infra/modules/route53-record/`)
-- [x] CMS DNS 레코드 생성 (`cms-dev.nextpay.co.kr`)
+- [x] CMS DNS 레코드 생성 (`dev-cms.nextpay.co.kr`)
 - [x] Security Group 모듈 개선 (Protocol -1 포트 처리)
 - [x] Network 모듈: Pvt 서브넷 제외, NAT Gateway 있는 Private 서브넷만 사용
 - [x] CMS 헬스체크 경로: `/command/checkHealth`
 - [x] ECS Service 배포 완료 (Task Running)
 - [x] Task Definition Revision 4
+
+#### 10. ECS 이미지 버전 관리 분리
+- [x] ECS Task Definition에 `lifecycle { ignore_changes = [container_definitions] }` 추가
+- [x] ECS Service에 `lifecycle { ignore_changes = [desired_count, task_definition] }` 추가
+- [x] Terraform이 앱팀의 이미지 버전 업데이트를 무시하도록 설정
+- [x] 앱 개발자가 CI/CD로 자유롭게 이미지 태그 관리 가능
 
 ### 🔄 다음 작업 (우선순위 순)
 
