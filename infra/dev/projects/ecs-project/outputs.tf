@@ -3,13 +3,13 @@
 # ============================================================================
 
 output "ecr_repository_url" {
-  description = "URL of the ECR repository"
-  value       = module.ecr.repository_url
+  description = "URL of the ECR repository (null if using external image)"
+  value       = var.container_image_url == null ? module.ecr[0].repository_url : null
 }
 
 output "ecr_repository_arn" {
-  description = "ARN of the ECR repository"
-  value       = module.ecr.repository_arn
+  description = "ARN of the ECR repository (null if using external image)"
+  value       = var.container_image_url == null ? module.ecr[0].repository_arn : null
 }
 
 # ============================================================================

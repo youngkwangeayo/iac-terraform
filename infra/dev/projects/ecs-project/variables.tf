@@ -12,6 +12,12 @@ variable "project_name" {
   type        = string
 }
 
+variable "service_name" {
+  description = "service_name name"
+  type        = string
+  default = null
+}
+
 variable "environment" {
   description = "Environment (dev, stg, prod)"
   type        = string
@@ -51,7 +57,7 @@ variable "container_port" {
   nullable = false
 }
 
-variable "container_image" {
+variable "container_image_url" {
   description = "Container image URI (will be constructed from ECR)"
   type        = string
   default     = null
@@ -128,6 +134,14 @@ variable "autoscaling_scale_out_cooldown" {
   description = "Time between scale out actions in seconds"
   type        = number
   default     = 60
+}
+
+# ============================================================================
+# 모니터링 설정
+# ============================================================================
+variable "container_insights" {
+  description = "Enable CloudWatch Container Insights"
+  type        = string
 }
 
 # ============================================================================

@@ -1,23 +1,24 @@
 # ============================================================================
 # 프로젝트 정보
 # ============================================================================
-project_name = "cms"
+project_name = "tmp"
+service_name = "test-app"
 environment  = "dev"
 
 # ============================================================================
 # 네트워크 설정
 # ============================================================================
-alb_listener_rule_priority    = 250
-alb_listener_rule_host_header = "domain.co.kr"
-route53_zone_id               = "*******14XCM0YECN764"
-allowed_security_group_ids    = "sg-******c4c37acc59c5"
+alb_listener_rule_priority    = 222
+alb_listener_rule_host_header = "dev-tmp-app.nextpay.co.kr"
+route53_zone_id               = "******514XCM0YECN764"
+allowed_security_group_ids    = "sg-0d856c4c37acc59c5"
 
 # ============================================================================
 # App 설정
 # ============================================================================
-container_port      = 3827
-container_image_tag = "2.156.0-dev-7"
-health_check_path   = "/command/checkHealth"
+container_port      = 80
+container_image_tag = "latest"
+health_check_path   = "/"
 
 # ============================================================================
 # 컴퓨팅 설정
@@ -33,9 +34,14 @@ autoscaling_min_capacity = 1
 autoscaling_max_capacity = 3
 
 # ============================================================================
+# 모니터링 설정
+# ============================================================================
+container_insights  = "enhanced"
+
+# ============================================================================
 # 환경변수 설정
 # ============================================================================
 environment_vars = {
-  HELLO = WORLD
+  NODE_ENV                   = "dev"
 }
 

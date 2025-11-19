@@ -39,17 +39,12 @@ data "terraform_remote_state" "iam" {
 module "common" {
   source = "../../../modules/common"
 
-  environment  = var.environment
-  project_name = var.project_name
+  environment   = var.environment
+  project_name  = var.project_name
+  service_name = var.service_name
 }
 
 
-# 로컬 변수 (모듈에서 가져온 값 사용)
-locals {
-  name_prefix = module.common.name_prefix
-  common_tags = module.common.common_tags
-
-}
 
 # ============================================================================
 # ECR Repository (프로젝트 전용)
@@ -58,10 +53,13 @@ locals {
 module "ecr" {
   source = "../../../modules/ecr"
 
-  repository_name      = "ecr-${local.name_prefix}"
+  count  = var.container_image_url == null ? 1 : 0
+
+  repository_name      = module.common.common_name
   image_tag_mutability = "MUTABLE"
   scan_on_push         = true
 
+  force_delete = true
   lifecycle_policy = jsonencode({
     rules = [
       {
@@ -93,7 +91,7 @@ module "ecr" {
     ]
   })
 
-  tags = local.common_tags
+  tags = module.common.common_tags
 }
 
 # ============================================================================
@@ -103,7 +101,7 @@ module "ecr" {
 module "ecs_security_group" {
   source = "../../../modules/security-group"
 
-  name        = "${local.name_prefix}-ecs-sg"
+  name        = module.common.common_name
   description = "Security group for CMS ECS tasks"
   vpc_id      = data.terraform_remote_state.network.outputs.vpc_id
 
@@ -127,7 +125,7 @@ module "ecs_security_group" {
     }
   ]
 
-  tags = local.common_tags
+  tags = module.common.common_tags
 }
 
 # ============================================================================
@@ -135,14 +133,15 @@ module "ecs_security_group" {
 # ============================================================================
 
 module "target_group" {
-  source = "../../../modules/target-group"
+  source = "../../../modules/load-balancer/target-group"
 
-  name        = "tg-${local.name_prefix}"
+  name        = module.common.common_name
+
   port        = var.container_port
   protocol    = "HTTP"
   vpc_id      = data.terraform_remote_state.network.outputs.vpc_id
-  target_type = "ip"
 
+  target_type = "ip"
   health_check = {
     enabled             = true
     path                = var.health_check_path
@@ -155,7 +154,7 @@ module "target_group" {
     matcher             = "200"
   }
 
-  tags = local.common_tags
+  tags = module.common.common_tags
 }
 
 # ============================================================================
@@ -177,7 +176,7 @@ resource "aws_lb_listener_rule" "https" {
     }
   }
 
-  tags = local.common_tags
+  tags = module.common.common_tags
 }
 
 # ============================================================================
@@ -201,11 +200,11 @@ module "route53_record" {
 module "ecs_cluster" {
   source = "../../../modules/ecs/ecs-cluster"
 
-  cluster_name        = "cluster-${local.name_prefix}"
+  cluster_name        = module.common.common_name
   capacity_providers  = ["FARGATE", "FARGATE_SPOT"]
-  container_insights  = true
+  container_insights  = var.container_insights
 
-  tags = local.common_tags
+  tags = module.common.common_tags
 }
 
 # ============================================================================
@@ -213,10 +212,10 @@ module "ecs_cluster" {
 # ============================================================================
 
 resource "aws_cloudwatch_log_group" "ecs" {
-  name              = "/ecs/${local.name_prefix}"
+  name              = "/ecs/${module.common.common_name}"
   retention_in_days = 7
 
-  tags = local.common_tags
+  tags = module.common.common_tags
 }
 
 # ============================================================================
@@ -226,7 +225,7 @@ resource "aws_cloudwatch_log_group" "ecs" {
 module "ecs_task_definition" {
   source = "../../../modules/ecs/ecs-task-definition"
 
-  family                   = "task-${local.name_prefix}"
+  family                   = module.common.common_name
   cpu                      = var.task_cpu
   memory                   = var.task_memory
   network_mode             = "awsvpc"
@@ -237,7 +236,7 @@ module "ecs_task_definition" {
   container_definitions = jsonencode([
     {
       name      = var.project_name
-      image     = var.container_image != null ? "${var.container_image}:${var.container_image_tag}" : "${module.ecr.repository_url}:${var.container_image_tag}"
+      image     = var.container_image_url != null ? "${var.container_image_url}:${var.container_image_tag}" : "${module.ecr[0].repository_url}:${var.container_image_tag}"
       cpu       = 0
       essential = true
 
@@ -286,7 +285,7 @@ module "ecs_task_definition" {
     operating_system_family = "LINUX"
   }
 
-  tags = local.common_tags
+  tags = module.common.common_tags
 }
 
 # ============================================================================
@@ -296,7 +295,7 @@ module "ecs_task_definition" {
 module "ecs_service" {
   source = "../../../modules/ecs/ecs-service"
 
-  name                = "service-${local.name_prefix}"
+  name                = module.common.common_name
   cluster_id          = module.ecs_cluster.cluster_arn
   task_definition_arn = module.ecs_task_definition.task_definition_arn
   desired_count       = var.desired_count
@@ -338,7 +337,7 @@ module "ecs_service" {
   enable_ecs_managed_tags = true
   propagate_tags          = "NONE"
 
-  tags = local.common_tags
+  tags = module.common.common_tags
 }
 
 # ============================================================================
@@ -354,7 +353,7 @@ module "ecs_autoscaling" {
   min_capacity = var.autoscaling_min_capacity
   max_capacity = var.autoscaling_max_capacity
 
-  policy_name            = "autoScale-${local.name_prefix}"
+  policy_name            = module.common.common_name
   predefined_metric_type = var.autoscaling_metric_type
   target_value           = var.autoscaling_target_value
   scale_in_cooldown      = var.autoscaling_scale_in_cooldown
