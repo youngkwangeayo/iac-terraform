@@ -38,17 +38,21 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 - [x] 환경 독립적인 모듈 구조로 개선 (`infra/modules/`)
 - [x] 루트 모듈 관리 규칙 정립 (`resources/`, `projects/`)
 
-#### 2. 재사용 가능한 모듈 개발 (7개)
+#### 2. 재사용 가능한 모듈 개발 (11개)
 - [x] **common** - 공통 네이밍 및 태그 관리
 - [x] **ecr** - ECR Repository
 - [x] **security-group** - Security Group
-- [x] **target-group** - Target Group
-- [x] **ecs-cluster** - ECS Cluster
-- [x] **ecs-task-definition** - ECS Task Definition
-- [x] **ecs-service** - ECS Service
+- [x] **load-balancer/target-group** - Target Group
+- [x] **load-balancer/elb** - Application/Network Load Balancer
+- [x] **load-balancer/listener** - ALB/NLB Listener
+- [x] **load-balancer/rule** - Listener Rule
+- [x] **ecs/ecs-cluster** - ECS Cluster (모니터링 옵션 추가)
+- [x] **ecs/ecs-task-definition** - ECS Task Definition
+- [x] **ecs/ecs-service** - ECS Service
+- [x] **ecs/ecs-autoscaling** - ECS Auto Scaling
 
 #### 3. 모듈 테스트 완료
-- [x] 7개 모듈 모두 테스트 통과 (`terraform validate`, `terraform plan`)
+- [x] 11개 모듈 모두 테스트 통과 (`terraform validate`, `terraform plan`)
 - [x] 테스트 결과 문서화 ([tests/TEST-RESULT.md](tests/TEST-RESULT.md))
 - [x] 테스트 프레임워크 구축 (`tests/` 디렉토리)
 
@@ -101,18 +105,39 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 - [x] Terraform이 앱팀의 이미지 버전 업데이트를 무시하도록 설정
 - [x] 앱 개발자가 CI/CD로 자유롭게 이미지 태그 관리 가능
 
+#### 11. Load Balancer 모듈 응집 및 개선
+- [x] `infra/modules/load-balancer/` 디렉토리로 통합
+  - target-group: Target Group 생성
+  - elb: ALB/NLB 생성
+  - listener: Listener 생성
+  - rule: Listener Rule 생성
+- [x] 모듈 재사용성 향상 (최소 단위로 분리)
+- [x] CMS 프로젝트 적용 완료
+
+#### 12. Common 모듈 개선
+- [x] 네이밍 규칙 개선 (`{environment}-{project_name}[-{service_name}]`)
+- [x] 서비스별 네이밍 지원 (service_name 옵션 추가)
+- [x] 공통 태그 관리 개선
+
+#### 13. ECS 클러스터 모니터링 옵션 추가
+- [x] `container_insights` 변수 추가 (enhanced, enabled, disabled)
+- [x] CloudWatch Container Insights 설정 지원
+- [x] CMS 프로젝트에 enhanced 모니터링 적용
+
 ### 🔄 다음 작업 (우선순위 순)
 
-#### 1. Variables 리팩토링 (tfvars 기반 운영)
-- [ ] 모듈 variables.tf의 불필요한 default 값 제거
-- [ ] 프로젝트/리소스 variables.tf의 불필요한 default 값 제거
-- [ ] terraform.tfvars 파일 생성 및 적용
-- [ ] 재사용 편의성 개선
-
-#### 2. 민감정보 관리 개선
+#### 1. 민감정보 관리 개선
 - [ ] AWS Secrets Manager 또는 SSM Parameter Store 적용
 - [ ] Task Definition secrets 필드 활용
 - [ ] 환경변수 외부화
+
+#### 2. ECS Auto Scaling 모듈 테스트 및 문서화
+- [ ] ecs-autoscaling 모듈 테스트
+- [ ] 모듈 README 작성
+
+#### 3. Load Balancer 모듈 문서화
+- [ ] load-balancer 하위 모듈 README 작성
+- [ ] 사용 예시 추가
 
 ### 📊 진행률
 
@@ -133,13 +158,45 @@ AWS 인프라를 재사용 가능한 IaC 템플릿으로 구성하여 다양한 
 
 
 ## 네이밍 규칙
-**형식**: `{aws-service}-{environment}-{solution}[-{component}]`
+
+### Common 모듈 기반 네이밍
+프로젝트는 **common 모듈**을 사용하여 일관된 네이밍을 적용합니다.
+
+**Common 모듈 출력**: `{environment}-{project_name}[-{service_name}]`
+
+각 AWS 리소스 모듈에서 서비스 접두어를 추가:
+
+**최종 형식**: `{aws-service}-{environment}-{project_name}[-{service_name}]`
 
 ### 예시
-- `ecs-dev-myapp`
-- `service-dev-mys1-api`
-- `ecs-prod-payment-web`
-- `rds-dev-myapp`
+| 모듈 입력 | Common 출력 | 실제 AWS 리소스 이름 |
+|----------|------------|-------------------|
+| env=dev, project=cms | `dev-cms` | `ecr-dev-cms`, `cluster-dev-cms`, `sg-dev-cms` |
+| env=dev, project=cms, service=api | `dev-cms-api` | `service-dev-cms-api`, `tg-dev-cms-api` |
+| env=prod, project=payment, service=web | `prod-payment-web` | `cluster-prod-payment-web` |
+
+### 네이밍 흐름
+```hcl
+# 1. Common 모듈로 기본 이름 생성
+module "common" {
+  environment  = "dev"
+  project_name = "cms"
+}
+# Output: common_name = "dev-cms"
+
+# 2. 각 모듈에서 AWS 서비스 접두어 추가
+module "ecr" {
+  repository_name = module.common.common_name
+}
+# 실제 생성: "ecr-dev-cms"
+
+module "ecs_cluster" {
+  cluster_name = module.common.common_name
+}
+# 실제 생성: "cluster-dev-cms"
+```
+
+자세한 내용은 [Common 모듈 README](infra/modules/common/README.md)를 참고하세요.
 
 ## 루트 모듈 관리 규칙
 
@@ -230,11 +287,16 @@ tf-aws-module/
 │   │   ├── common/             # 공통 네이밍 및 태그 모듈
 │   │   ├── ecr/                # ECR 모듈
 │   │   ├── security-group/     # Security Group 모듈
-│   │   ├── target-group/       # Target Group 모듈
+│   │   ├── load-balancer/      # Load Balancer 관련 모듈
+│   │   │   ├── elb/                # ALB/NLB 모듈
+│   │   │   ├── listener/           # Listener 모듈
+│   │   │   ├── rule/               # Listener Rule 모듈
+│   │   │   └── target-group/       # Target Group 모듈
 │   │   └── ecs/                # ECS 관련 모듈
 │   │       ├── ecs-cluster/            # ECS Cluster 모듈
 │   │       ├── ecs-task-definition/    # ECS Task Definition 모듈
-│   │       └── ecs-service/            # ECS Service 모듈
+│   │       ├── ecs-service/            # ECS Service 모듈
+│   │       └── ecs-autoscaling/        # ECS Auto Scaling 모듈
 │   │
 │   ├── dev/                    # 개발 환경
 │   │   ├── resources/          # 공통 인프라 리소스 (인프라팀 관리)
@@ -362,18 +424,27 @@ terraform plan      # Plan: 1 to add, 0 to change, 0 to destroy.
 
 ## 작업 진행 상황
 
+### 2025-11-19: Load Balancer 모듈 응집 및 Common 모듈 개선
+- [x] Load Balancer 모듈 응집
+  - modules/load-balancer/ 디렉토리 구조 구현
+  - elb, listener, rule, target-group 모듈로 분리
+  - 최소 단위 모듈로 재사용성 극대화
+- [x] Common 모듈 개선
+  - service_name 옵션 추가 (서비스별 네이밍 지원)
+  - 네이밍 규칙 개선
+- [x] ECS 클러스터 모니터링 옵션 추가
+  - container_insights 변수 추가 (enhanced, enabled, disabled)
+- [x] ECR 모듈 강제 삭제 옵션 추가
+  - force_delete 옵션으로 이미지 있어도 삭제 가능
+- [x] CMS 프로젝트 적용 및 검증
+- [x] ECS Auto Scaling 모듈 개발
+
 ### 완료
 - [x] 프로젝트 디렉토리 구조 설계 (infra/ 하위로 재구성)
 - [x] dev/prod 환경별 디렉토리 생성
+- [x] Load Balancer 모듈 개발 및 응집 (load-balancer/ 디렉토리 내 구조화)
 - [x] ECS 관련 모듈 개발 (ecs/ 디렉토리 내 구조화)
-- [x] common 모듈 개발 (네이밍 및 태그 표준화)
+- [x] common 모듈 개발 및 개선 (네이밍 및 태그 표준화)
 - [x] 모듈 테스트 프레임워크 구축
-
-### 진행 중
-- [ ] network 루트 모듈 개발 (data source 기반)
-- [ ] 추가 모듈 테스트 작성
-
-### 예정
-- [ ] S3 Backend 설정
-- [ ] 모듈 세분화 (VPC, Subnet, Security Group 등)
-- [ ] 프로젝트별 배포 템플릿 작성
+- [x] S3 Backend 설정
+- [x] CMS 프로젝트 배포 완료
