@@ -12,7 +12,7 @@ provider "aws" {
 }
 
 module "common" {
-  source = "../../infra/modules/common-22"
+  source = "../../infra/modules/common"
 
   environment  = "dev"
   project_name = "test"

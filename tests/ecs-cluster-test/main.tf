@@ -16,7 +16,7 @@ module "ecs_cluster" {
 
   cluster_name        = "test-cluster"
   capacity_providers  = ["FARGATE", "FARGATE_SPOT"]
-  container_insights  = true
+  container_insights  = "enhanced"
 
   default_capacity_provider_strategy = [
     {
