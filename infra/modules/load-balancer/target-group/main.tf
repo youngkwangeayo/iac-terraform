@@ -25,6 +25,12 @@ resource "aws_lb_target_group" "this" {
     }
   }
 
-  tags = var.tags
+  tags = merge(
+    var.tags,
+    {
+      Name = "${var.name}-tg"
+    }
+  )
+  
 }
 

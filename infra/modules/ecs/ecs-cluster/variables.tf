@@ -21,8 +21,12 @@ variable "default_capacity_provider_strategy" {
 
 variable "container_insights" {
   description = "Enable CloudWatch Container Insights"
-  type        = bool
-  default     = true
+  type        = string
+
+  validation {
+    condition = contains(["enhanced", "enabled", "disabled"], var.container_insights)
+    error_message = "모니터링 여부 사용 가능한 값은 enhanced, enabled, disabled 택1"
+  }
 }
 
 variable "tags" {

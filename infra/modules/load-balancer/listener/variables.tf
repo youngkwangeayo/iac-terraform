@@ -87,7 +87,7 @@ variable "redirect" {
 # 옵션 고정 응답
 # ============================================================================
 variable "fixed_response" {
-    description = "리다이렉션 설정. 디폴트 https 전체 url 리다이렉션"
+    description = "고정응답반환 트러블슈킹및 네트워크트랙킹 쉬운 처리를 위한 고정응답 501 디폴트"
     type = object({
         content_type = optional(string, "text/html")
         message_body = optional(string, "501 Target Not Implemented")

@@ -1,23 +1,23 @@
 variable "environment" {
-  description = "Environment name (dev, prod, staging)"
+  description = "Environment (dev, stg, prod)"
   type        = string
+  nullable    = false
+  validation {
+    condition     = contains(["dev", "stg", "prod"], var.environment)
+    error_message = "dev, stg, prod 중 택1을 꼭 해주세요."
+  }
 }
 
 variable "project_name" {
   description = "Project name"
   type        = string
+  default = null
 }
 
-variable "aws_service" {
-  description = "AWS service name (optional, for resource naming)"
-  type        = string
-  default     = ""
-}
-
-variable "component" {
-  description = "Component name (optional, for resource naming)"
-  type        = string
-  default     = ""
+variable "service_name" {
+  description = "서비스이름 logbackend"
+  type = string
+  default = null
 }
 
 variable "additional_tags" {

@@ -1,5 +1,5 @@
 resource "aws_ecs_service" "this" {
-  name                               = var.name
+  name                               = "service-${var.name}"
   cluster                            = var.cluster_id
   task_definition                    = var.task_definition_arn
   desired_count                      = var.desired_count
@@ -47,7 +47,10 @@ resource "aws_ecs_service" "this" {
   deployment_maximum_percent         = var.deployment_configuration.maximum_percent
   deployment_minimum_healthy_percent = var.deployment_configuration.minimum_healthy_percent
 
-  tags = var.tags
+  tags = merge(
+    var.tags,
+    { Name : "service-${var.name}" }
+  )
 
   lifecycle {
     ignore_changes = [desired_count, task_definition]

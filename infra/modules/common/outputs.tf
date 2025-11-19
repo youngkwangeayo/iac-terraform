@@ -1,17 +1,14 @@
-output "name_prefix" {
-  description = "Basic name prefix: {environment}-{project_name}"
-  value       = local.base_prefix
+
+
+output "common_name" {
+  description = "<project_name>-<sercice_name>"
+  value       = local.common_name
 }
 
-output "service_prefix" {
-  description = "Service name prefix: {environment}-{aws_service}-{project_name}"
-  value       = local.service_prefix
-}
-
-output "full_name" {
-  description = "Full resource name with component: {environment}-{aws_service}-{project_name}-{component}"
-  value       = local.full_name
-}
+# output "common_full_name" {
+#   description = "<모듈에서 선택된 리소스>-<project_name>-<sercice_name>"
+#   value       = "resource-${local.common_name}"
+# }
 
 output "common_tags" {
   description = "Common tags for all resources"
@@ -21,9 +18,4 @@ output "common_tags" {
 output "environment" {
   description = "Environment name"
   value       = var.environment
-}
-
-output "project_name" {
-  description = "Project name"
-  value       = var.project_name
 }

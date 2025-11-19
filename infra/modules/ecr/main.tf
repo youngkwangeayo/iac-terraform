@@ -1,12 +1,18 @@
 resource "aws_ecr_repository" "this" {
-  name                 = var.repository_name
+  name                 = "ecr-${var.repository_name}"
   image_tag_mutability = var.image_tag_mutability
+  force_delete         = var.force_delete
 
   image_scanning_configuration {
     scan_on_push = var.scan_on_push
   }
 
-  tags = var.tags
+  tags = merge(
+    var.tags,
+    {
+      Name = "ecr-${var.repository_name}"
+    }
+  )
 }
 
 resource "aws_ecr_lifecycle_policy" "this" {

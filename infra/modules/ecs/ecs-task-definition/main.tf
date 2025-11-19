@@ -1,5 +1,5 @@
 resource "aws_ecs_task_definition" "this" {
-  family                   = var.family
+  family                   = "task-${var.family}"
   cpu                      = var.cpu
   memory                   = var.memory
   network_mode             = var.network_mode
@@ -13,7 +13,10 @@ resource "aws_ecs_task_definition" "this" {
     operating_system_family = var.runtime_platform.operating_system_family
   }
 
-  tags = var.tags
+  tags = merge(
+    var.tags,
+    { Name = "task-${var.family}" }
+  )
 
   lifecycle {
     ignore_changes = [container_definitions]
