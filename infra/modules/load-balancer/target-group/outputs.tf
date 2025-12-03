@@ -17,3 +17,11 @@ output "target_group_arn_suffix" {
   description = "ARN suffix for use with CloudWatch Metrics"
   value       = aws_lb_target_group.this.arn_suffix
 }
+
+output "attachment_ids" {
+  description = "Map of target attachment IDs"
+  value = {
+    for k, v in aws_lb_target_group_attachment.this :
+    k => v.id
+  }
+}

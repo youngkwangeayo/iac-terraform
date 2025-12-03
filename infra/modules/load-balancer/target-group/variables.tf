@@ -5,7 +5,7 @@
 
 variable "name" {
   description = "targetGruopName Import from module 'common' and use it"
-  type = string
+  type        = string
 }
 
 
@@ -21,16 +21,24 @@ variable "tags" {
 # ============================================================================
 variable "target_type" {
   description = "Select target type."
-  type = string
-  default = null
+  type        = string
+  default     = null
   validation {
-    condition = var.target_type==null || contains(["ip", "lambda", "alb","instance"], var.target_type)
+    condition     = var.target_type == null || contains(["ip", "lambda", "alb", "instance"], var.target_type)
     error_message = "Only null,ip,lambda,alb. Ps instances type is null"
   }
 }
 
 
 
+variable "target" {
+  description = "타겟그룹에 등록할 대상. 추후 생성가능."
+  type = list(object({
+    target_id = string
+    port      = number
+  }))
+  default = []
+}
 # ============================================================================
 # 트레픽 설정
 # ============================================================================
@@ -38,21 +46,33 @@ variable "target_type" {
 variable "port" {
   description = "Port on which targets receive traffic"
   type        = number
-  nullable = true
+  nullable    = true
+  validation {
+    condition = !(var.target_type != "lambda" && var.port == null)
+    error_message = "instance, alb, ip 타입은 포트 필수"
+  }
 }
 
 variable "protocol" {
   description = "Protocol to use for routing traffic to the targets"
   type        = string
   default     = "HTTP"
+  validation {
+    condition = !(var.target_type != "lambda" && var.protocol == null)
+    error_message = "instance, alb, ip 타입은 Protocol 필수"
+  }
 }
 
 variable "vpc_id" {
   description = "Select the VPC that contains the Application Load Balancer you want to include in the target group."
-  type = string
-  default = null
+  type        = string
+  default     = null
   validation {
-    condition = !(var.target_type == "lambda" && var.vpc_id != null)
+    condition = !(var.target_type != "lambda" && var.vpc_id == null)
+    error_message = "instance, alb, ip 타입은 vpc_id 필수"
+  }
+  validation {
+    condition     = !(var.target_type == "lambda" && var.vpc_id != null)
     error_message = "vpc_id must be null when target_type is lambda"
   }
 }

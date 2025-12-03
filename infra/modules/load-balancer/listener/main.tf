@@ -13,8 +13,10 @@ resource "aws_lb_listener" "this" {
   default_action {
     type             = var.routing_action
     
+    # 옵션1 타입 타겟그룹
     target_group_arn = var.target_group_arn #defalut null
 
+    # 옵션2 타입 리다이렉션
     dynamic "redirect" {
       for_each = var.routing_action == "redirect" ? [1] : [0]
       content {
@@ -27,12 +29,13 @@ resource "aws_lb_listener" "this" {
       }
     }
 
+    # 옵션3 타입 고정응답 
     dynamic "fixed_response" {
       for_each = var.routing_action == "fixed_response" ? [1] : [0]
       content {
-        content_type = "text/plain"
-        message_body = "Fixed response content"
-        status_code  = "200"
+        content_type = var.fixed_response.content_type
+        message_body = var.fixed_response.message_body
+        status_code  = var.fixed_response.status_code
       }
     }
   }
@@ -41,62 +44,3 @@ resource "aws_lb_listener" "this" {
 }
 
 
-# resource "aws_lb_listener" "this" {
-#   load_balancer_arn = var.load_balancer_arn
-#   port              = "443"
-#   protocol          = "HTTPS"
-#   ssl_policy        = "ELBSecurityPolicy-2016-08"
-#   certificate_arn   = "arn:aws:iam::187416307283:server-certificate/test_cert_rab3wuqwgja25ct3n4jdj2tzu4"
-
-#   default_action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.front_end.arn
-#   }
-# }
-
-
-# resource "aws_lb_listener" "front_end" {
-#   load_balancer_arn = aws_lb.front_end.arn
-#   port              = "80"
-#   protocol          = "HTTP"
-
-#   default_action {
-#     type = "redirect"
-
-#     redirect {
-#       port        = "443"
-#       protocol    = "HTTPS"
-#       status_code = "HTTP_301"
-#     }
-#   }
-# }
-
-# resource "aws_lb_listener" "front_end" {
-#   load_balancer_arn = aws_lb.front_end.arn
-#   port              = "80"
-#   protocol          = "HTTP"
-
-#   default_action {
-#     type = "fixed-response"
-
-#     fixed_response {
-#       content_type = "text/plain"
-#       message_body = "Fixed response content"
-#       status_code  = "200"
-#     }
-#   }
-# }
-
-# resource "aws_lb_listener" "front_end" {
-#   load_balancer_arn = aws_lb.front_end.arn
-#   port              = "443"
-#   protocol          = "TLS"
-#   ssl_policy        = "ELBSecurityPolicy-2016-08"
-#   certificate_arn   = "arn:aws:iam::187416307283:server-certificate/test_cert_rab3wuqwgja25ct3n4jdj2tzu4"
-#   alpn_policy       = "HTTP2Preferred"
-
-#   default_action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.front_end.arn
-#   }
-# }

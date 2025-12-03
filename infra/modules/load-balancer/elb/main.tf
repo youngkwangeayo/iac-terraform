@@ -6,7 +6,7 @@ locals {
 resource "aws_lb" "this" {
   name = "${local.lb_name_prefix}-${var.name}"
 
-  internal           = var.internal           #default true
+  internal           = var.internal           #default false
   load_balancer_type = var.load_balancer_type == null? "application" : var.load_balancer_type #default application
 
   subnets         = var.subnet_ids
