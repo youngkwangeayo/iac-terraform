@@ -17,13 +17,32 @@ resource "aws_ecs_service" "this" {
     assign_public_ip = var.network_configuration.assign_public_ip
   }
 
+  dynamic "deployment_configuration" {
+    for_each = var.deployment_strategy == "BLUE_GREEN" ? [1] : []
+    content {
+      strategy = "BLUE_GREEN"
+    }
+  }
+
   dynamic "load_balancer" {
     for_each = var.load_balancer != null ? [var.load_balancer] : []
+    
     content {
       target_group_arn = load_balancer.value.target_group_arn
       container_name   = load_balancer.value.container_name
       container_port   = load_balancer.value.container_port
+     
+      dynamic "advanced_configuration" {
+        for_each = var.blue_green_deployment != null ? [var.blue_green_deployment] : []
+        content {
+          alternate_target_group_arn = advanced_configuration.value.alternate_target_group_arn
+          production_listener_rule = advanced_configuration.value.production_listener_rule
+          role_arn = advanced_configuration.value.role_arn
+        }
+      }
+
     }
+
   }
 
   dynamic "capacity_provider_strategy" {

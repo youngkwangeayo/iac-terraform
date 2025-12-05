@@ -66,6 +66,27 @@ variable "load_balancer" {
   default = null
 }
 
+variable "deployment_strategy" {
+  description = "베포옵션전략선택"
+  type = string
+  validation {
+    condition = contains(["ROLLING", "BLUE_GREEN"], var.deployment_strategy)
+    error_message = "ROLLING, BLUE_GREEN 중 택 1"
+  } 
+  default = "ROLLING"
+}
+
+variable "blue_green_deployment" {
+  description = "use to blue_green_deployment"
+  type = object({
+    alternate_target_group_arn = string
+    production_listener_rule = string
+    role_arn = string
+  })
+
+  default = null
+}
+
 variable "health_check_grace_period_seconds" {
   description = "Seconds to ignore failing load balancer health checks on newly instantiated tasks"
   type        = number
