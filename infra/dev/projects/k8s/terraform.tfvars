@@ -4,7 +4,6 @@
 aws_region         = "ap-northeast-2"
 environment        = "dev"
 project_name       = "cms"
-cluster_name       = "dev-cms-eks-ap-northeast-2"
 kubernetes_version = "1.34"
 
 # ============================================================================

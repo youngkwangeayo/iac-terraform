@@ -2,7 +2,7 @@
 # EKS Node Group IAM Role
 # ============================================================================
 resource "aws_iam_role" "node" {
-  name = "${var.cluster_name}-node-role"
+  name = local.node_role_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

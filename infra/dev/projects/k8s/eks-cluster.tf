@@ -2,7 +2,7 @@
 # EKS Cluster
 # ============================================================================
 resource "aws_eks_cluster" "cms" {
-  name     = var.cluster_name
+  name     = local.cluster_name
   version  = var.kubernetes_version
   role_arn = aws_iam_role.cluster.arn
 

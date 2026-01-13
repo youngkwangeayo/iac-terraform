@@ -4,8 +4,8 @@ CMS 서비스를 위한 전용 EKS 클러스터를 Terraform으로 프로비저�
 
 ## 📋 Overview
 
-- **Cluster Name**: `dev-cms-eks-ap-northeast-2`
-- **Kubernetes Version**: 1.33
+- **Cluster Name**: `eks-dev-cms-k8s` (auto-generated from common module)
+- **Kubernetes Version**: 1.34
 - **Node Type**: t3.large (1-3 nodes)
 - **Service CIDR**: 10.200.0.0/16
 - **Network**: vpc-276cc74c (기존 VPC, K8s 서브넷 3개)
@@ -84,7 +84,7 @@ terraform apply tfplan
 terraform output -raw kubectl_config_command | bash
 
 # Or manually:
-aws eks update-kubeconfig --region ap-northeast-2 --name dev-cms-eks-ap-northeast-2
+aws eks update-kubeconfig --region ap-northeast-2 --name eks-dev-cms-k8s
 
 # Verify cluster
 kubectl get nodes
@@ -200,8 +200,8 @@ terraform plan
 ```bash
 # Check node group status
 aws eks describe-nodegroup \
-  --cluster-name dev-cms-eks-ap-northeast-2 \
-  --nodegroup-name dev-cms-eks-ap-northeast-2-nodegroup \
+  --cluster-name eks-dev-cms-k8s \
+  --nodegroup-name nodegroup-dev-cms-k8s \
   --region ap-northeast-2
 
 # Check node logs

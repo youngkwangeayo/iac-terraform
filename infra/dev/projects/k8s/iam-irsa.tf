@@ -15,7 +15,7 @@ resource "aws_iam_openid_connect_provider" "cluster" {
 # IRSA for AWS Load Balancer Controller
 # ============================================================================
 resource "aws_iam_role" "alb_controller" {
-  name = "${var.cluster_name}-alb-controller-role"
+  name = local.alb_controller_role_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -38,7 +38,7 @@ resource "aws_iam_role" "alb_controller" {
 }
 
 resource "aws_iam_policy" "alb_controller" {
-  name = "${var.cluster_name}-alb-controller-policy"
+  name = local.alb_controller_policy_name
 
   policy = file("${path.module}/policies/alb-controller-policy.json")
 
@@ -54,7 +54,7 @@ resource "aws_iam_role_policy_attachment" "alb_controller" {
 # IRSA for EBS CSI Driver
 # ============================================================================
 resource "aws_iam_role" "ebs_csi_driver" {
-  name = "${var.cluster_name}-ebs-csi-driver-role"
+  name = local.ebs_csi_driver_role_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -85,7 +85,7 @@ resource "aws_iam_role_policy_attachment" "ebs_csi_driver" {
 # IRSA for Cluster Autoscaler
 # ============================================================================
 resource "aws_iam_role" "cluster_autoscaler" {
-  name = "${var.cluster_name}-cluster-autoscaler-role"
+  name = local.cluster_autoscaler_role_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -108,7 +108,7 @@ resource "aws_iam_role" "cluster_autoscaler" {
 }
 
 resource "aws_iam_policy" "cluster_autoscaler" {
-  name = "${var.cluster_name}-cluster-autoscaler-policy"
+  name = local.cluster_autoscaler_policy_name
 
   policy = jsonencode({
     Version = "2012-10-17"

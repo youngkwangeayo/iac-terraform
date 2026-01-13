@@ -16,18 +16,12 @@ variable "environment" {
 variable "project_name" {
   description = "Project name"
   type        = string
-  default     = "myproject"
+  default     = "cms"
 }
 
 # ============================================================================
 # EKS Cluster Configuration
 # ============================================================================
-variable "cluster_name" {
-  description = "EKS cluster name"
-  type        = string
-  default     = "dev-myproject-eks-ap-northeast-2"
-}
-
 variable "kubernetes_version" {
   description = "Kubernetes version"
   type        = string

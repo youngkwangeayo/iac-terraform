@@ -2,7 +2,7 @@
 # EKS Cluster IAM Role
 # ============================================================================
 resource "aws_iam_role" "cluster" {
-  name = "${var.cluster_name}-cluster-role"
+  name = local.cluster_role_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
