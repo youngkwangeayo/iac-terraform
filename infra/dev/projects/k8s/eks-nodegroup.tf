@@ -1,4 +1,26 @@
 # ============================================================================
+# Launch Template for Node Group
+# ============================================================================
+# NOTE: Commented out for initial testing. VPC ID is explicitly set in ALB Controller.
+# Uncomment if IMDS access is still needed after testing.
+#
+# resource "aws_launch_template" "node_group" {
+#   name = "launch-template-${local.nodegroup_name}"
+#
+#   metadata_options {
+#     http_endpoint               = "enabled"
+#     http_tokens                 = "required"  # IMDSv2
+#     http_put_response_hop_limit = 2           # Allow Pod access to IMDS
+#     instance_metadata_tags      = "disabled"
+#   }
+#
+#   tag_specifications {
+#     resource_type = "instance"
+#     tags          = local.common_tags
+#   }
+# }
+
+# ============================================================================
 # EKS Node Group
 # ============================================================================
 resource "aws_eks_node_group" "cms" {
@@ -26,6 +48,13 @@ resource "aws_eks_node_group" "cms" {
     Environment = var.environment
     Project     = var.project_name
   }
+
+  # Enable IMDSv2 for Pod access to instance metadata
+  # NOTE: Commented out for initial testing with explicit VPC ID in ALB Controller
+  # launch_template {
+  #   name    = aws_launch_template.node_group.name
+  #   version = "$Latest"
+  # }
 
   depends_on = [
     aws_iam_role_policy_attachment.node_AmazonEKSWorkerNodePolicy,

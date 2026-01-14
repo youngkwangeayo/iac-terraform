@@ -5,7 +5,7 @@ resource "helm_release" "metrics_server" {
   name       = "metrics-server"
   repository = "https://kubernetes-sigs.github.io/metrics-server/"
   chart      = "metrics-server"
-  version    = "3.12.2"
+  version    = "3.13.0"
   namespace  = "kube-system"
 
   set {
@@ -26,12 +26,23 @@ resource "helm_release" "alb_controller" {
   name       = "aws-load-balancer-controller"
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
-  version    = "1.11.0"
+  version    = "1.17.1"
   namespace  = "kube-system"
+
+  disable_openapi_validation = true
+  wait                       = true
+  timeout                    = 600
+  atomic                     = true
+  cleanup_on_fail            = true
 
   set {
     name  = "clusterName"
     value = aws_eks_cluster.cms.name
+  }
+
+  set {
+    name  = "vpcId"
+    value = var.vpc_id
   }
 
   set {
@@ -63,7 +74,7 @@ resource "helm_release" "cluster_autoscaler" {
   name       = "cluster-autoscaler"
   repository = "https://kubernetes.github.io/autoscaler"
   chart      = "cluster-autoscaler"
-  version    = "9.43.2"
+  version    = "9.54.1"
   namespace  = "kube-system"
 
   set {

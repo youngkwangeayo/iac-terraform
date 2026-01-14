@@ -60,7 +60,7 @@ data "aws_eks_addon_version" "ebs_csi_driver" {
 # ECR Repository (for reference)
 # ============================================================================
 data "aws_ecr_repository" "cms" {
-  name = "dev-cms"
+  name = "ecr-dev-cms"
 }
 
 # ============================================================================
