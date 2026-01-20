@@ -108,3 +108,29 @@ resource "helm_release" "cluster_autoscaler" {
     aws_iam_role.cluster_autoscaler,
   ]
 }
+
+# ============================================================================
+# Kube Prometheus Stack (Prometheus + Grafana + AlertManager)
+# ============================================================================
+resource "helm_release" "kube_prometheus_stack" {
+  name             = "kube-prometheus-stack"
+  repository       = "https://prometheus-community.github.io/helm-charts"
+  chart            = "kube-prometheus-stack"
+  version          = "81.0.0"
+  namespace        = "monitoring"
+  create_namespace = true
+
+  # 타임아웃 설정 (CRD 설치에 시간 소요)
+  timeout = 600
+  wait    = true
+
+  # values 파일 참조
+  values = [
+    file("${path.module}/values/kube-prometheus-stack-values.yaml")
+  ]
+
+  depends_on = [
+    aws_eks_node_group.cms,
+    aws_eks_addon.coredns,
+  ]
+}
