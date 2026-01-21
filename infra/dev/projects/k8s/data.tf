@@ -56,12 +56,6 @@ data "aws_eks_addon_version" "ebs_csi_driver" {
   most_recent        = true
 }
 
-# ============================================================================
-# ECR Repository (for reference)
-# ============================================================================
-data "aws_ecr_repository" "cms" {
-  name = "ecr-dev-cms"
-}
 
 # ============================================================================
 # ACM Certificate

@@ -10,13 +10,11 @@ variable "aws_region" {
 variable "environment" {
   description = "Environment (dev, stg, prod)"
   type        = string
-  default     = "dev"
 }
 
 variable "project_name" {
   description = "Project name"
   type        = string
-  default     = "cms"
 }
 
 # ============================================================================
@@ -34,16 +32,15 @@ variable "kubernetes_version" {
 variable "vpc_id" {
   description = "VPC ID"
   type        = string
-  default     = "vpc-276cc74c"
 }
 
 variable "subnet_ids" {
   description = "K8s subnet IDs (at least 2 AZs required)"
   type        = list(string)
   default = [
-    "subnet-004e0154a4a14df38", # ap-northeast-2a
-    "subnet-09fe8fd57f9e1780a", # ap-northeast-2b
-    "subnet-0d3f54f400c8b059a", # ap-northeast-2c
+     # ap-northeast-2a
+     # ap-northeast-2b
+     # ap-northeast-2c
   ]
 }
 
@@ -85,3 +82,4 @@ variable "node_disk_size" {
   type        = number
   default     = 30
 }
+

@@ -107,10 +107,6 @@ output "kubectl_config_command" {
 # ============================================================================
 # Additional Info
 # ============================================================================
-output "ecr_repository_url" {
-  description = "ECR repository URL for CMS"
-  value       = data.aws_ecr_repository.cms.repository_url
-}
 
 output "acm_certificate_arn" {
   description = "ACM certificate ARN for nextpay.co.kr"

@@ -2,13 +2,31 @@
 # Grafana 설정
 # ============================================================================
 grafana:
-  adminPassword: "admin"  # 배포 후 변경 권장
+  adminPassword: "Qa********7"  # 배포 후 변경 권장
 
-  # Ingress 비활성화 (나중에 별도 Helm으로 배포)
+  # Ingress 설정 (ALB IngressGroup 사용 - 그룹 참여만)
   ingress:
-    enabled: false
+    # enabled: false
+    enabled: true
+    ingressClassName: alb
+    annotations:
+        # --- [공통] ALB 그룹 설정 ---
+      alb.ingress.kubernetes.io/group.name: "main-prod-cms-alb"
+      alb.ingress.kubernetes.io/group.order: "1000"
+      # --- [공통] ALB 내부설정 설정 ---
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      # --- [개별] ALB 개별 설정 ---
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:3654*****891:certificate/e885**********38fc8b8
+      alb.ingress.kubernetes.io/healthcheck-path: "/api/health"
+    hosts:
+      - grafana-***s.ne****.co.kr
+    paths:
+      - /
 
-  # 스토리지 비활성화 (dev 환경)
+  # 스토리지 비활성화 (prod 환경)
   persistence:
     enabled: false
 
@@ -16,12 +34,22 @@ grafana:
 # Prometheus 설정
 # ============================================================================
 prometheus:
-  # Ingress 비활성화
+  # Ingress 설정 (ALB IngressGroup 사용)
   ingress:
     enabled: false
+    # enabled: true
+    # ingressClassName: alb
+    # annotations:
+    #   alb.ingress.kubernetes.io/group.name: "main-prod-cms-alb"
+    #   alb.ingress.kubernetes.io/group.order: "210"
+    #   alb.ingress.kubernetes.io/target-type: ip
+    # hosts:
+    #   - prometheus.nextpay.co.kr
+    # paths:
+    #   - /
 
   prometheusSpec:
-    # 메트릭 보관 기간 (dev 환경)
+    # 메트릭 보관 기간 (prod 환경)
     retention: 7d
 
     # 스토리지 비활성화 (emptyDir 사용)
@@ -31,6 +59,16 @@ prometheus:
 # AlertManager 설정
 # ============================================================================
 alertmanager:
-  # Ingress 비활성화
+  # Ingress 설정 (ALB IngressGroup 사용)
   ingress:
     enabled: false
+    # enabled: true
+    # ingressClassName: alb
+    # annotations:
+    #   alb.ingress.kubernetes.io/group.name: "main-ingress"
+    #   alb.ingress.kubernetes.io/group.order: "220"
+    #   alb.ingress.kubernetes.io/target-type: ip
+    # hosts:
+    #   - alertmanager.nextpay.co.kr
+    # paths:
+    #   - /

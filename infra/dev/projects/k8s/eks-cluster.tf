@@ -6,6 +6,10 @@ resource "aws_eks_cluster" "cms" {
   version  = var.kubernetes_version
   role_arn = aws_iam_role.cluster.arn
 
+  # access_config { #검증필요 엑세스구성
+  #   authentication_mode = "API_AND_CONFIG_MAP"
+  # }
+
   vpc_config {
     subnet_ids              = var.subnet_ids
     endpoint_private_access = true
