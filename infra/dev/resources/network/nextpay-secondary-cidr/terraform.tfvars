@@ -2,7 +2,7 @@
 # 프로젝트 정보
 # ============================================================================
 aws_region = "ap-northeast-2" 
-environment = "prod"
+environment = "dev"
 project_name = "nextpay"
 service_name = "secondary"
 
@@ -11,4 +11,5 @@ service_name = "secondary"
 # 네트워크 정보
 # ============================================================================
 use_k8s = true
-primary_vpc_name = "nextpay-vpc"
+primary_vpc_name = "de****c"
+primary_rtb_pub_id = "rtb-a85***c3"

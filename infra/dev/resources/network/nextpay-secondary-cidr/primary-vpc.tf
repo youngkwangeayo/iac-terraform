@@ -37,5 +37,5 @@ data "aws_internet_gateway" "primary_igw" {
 # 기존 Public 라우팅 테이블 참조 (재사용)
 # ---------------------------------------------------------
 data "aws_route_table" "primary_public" {
-  route_table_id = "rtb-0f915465cf882dea4"
+  route_table_id = var.primary_rtb_pub_id
 }

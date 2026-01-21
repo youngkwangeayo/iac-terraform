@@ -45,3 +45,9 @@ variable "primary_vpc_name" {
   description = "Name tag of the existing VPC to add secondary CIDR"
   type        = string
 }
+
+variable "primary_rtb_pub_id" {
+  description = "기존 라우팅 퍼블릭 테이블 아이디"
+  type        = string
+}
+

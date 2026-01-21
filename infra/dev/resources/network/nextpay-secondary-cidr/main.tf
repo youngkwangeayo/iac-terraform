@@ -36,12 +36,11 @@ resource "aws_subnet" "pub_subent" {
   availability_zone = local.az_zone[count.index]
   cidr_block        = "172.16.${count.index}.0/24"
 
-  enable_lni_at_device_index          = 0
   private_dns_hostname_type_on_launch = "ip-name"
 
   tags = merge(
     module.common.common_tags,
-    { Name : "pub-subnet${count.index}-${local.az_zone[count.index]}-${module.common.common_name}" }
+    { Name : "pub-subnet${count.index}-${local.az[count.index]}-${module.common.common_name}" }
   )
 
   # Secondary CIDR가 VPC에 추가된 후에 서브넷 생성
@@ -68,12 +67,11 @@ resource "aws_subnet" "priv_subnet" {
   availability_zone = local.az_zone[count.index]
   cidr_block        = "172.16.${10 + count.index}.0/24"
 
-  enable_lni_at_device_index          = 0
   private_dns_hostname_type_on_launch = "ip-name"
 
   tags = merge(
     module.common.common_tags,
-    { Name : "priv-subnet${count.index}-${local.az_zone[count.index]}-${module.common.common_name}" }
+    { Name : "priv-subnet${count.index}-${local.az[count.index]}-${module.common.common_name}" }
   )
 
   # Secondary CIDR가 VPC에 추가된 후에 서브넷 생성
@@ -93,7 +91,7 @@ resource "aws_route_table" "rtb_private" {
 
   tags = merge(
     module.common.common_tags,
-    { Name : "rtb-private-${local.az_zone[count.index]}-${module.common.common_name}" }
+    { Name : "rtb-private-${local.az[count.index]}-${module.common.common_name}" }
   )
 }
 # 프라이빗 서브넷과 라우팅 테이블 연결

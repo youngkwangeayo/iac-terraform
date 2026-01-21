@@ -13,7 +13,7 @@ terraform {
 terraform {
   backend "s3" {
     bucket         = "nextpay-terraform-state"
-    key            = "prod/resources/network/nextpay-secondary-cidr/terraform.tfstate"
+    key            = "dev/resources/network/nextpay-secondary-cidr/terraform.tfstate"
     region         = "ap-northeast-2"
     dynamodb_table = "nextpay-terraform-locks"
     encrypt        = true

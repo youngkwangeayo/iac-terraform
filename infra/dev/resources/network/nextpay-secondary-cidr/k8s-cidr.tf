@@ -10,13 +10,15 @@ resource "aws_subnet" "priv_subnet_k8s" {
   availability_zone = local.az_zone[count.index]
   cidr_block        = "172.16.${32 + (count.index * 16)}.0/20" //4,096
 
-  enable_lni_at_device_index          = 0
   private_dns_hostname_type_on_launch = "ip-name"
 
   tags = merge(
     module.common.common_tags,
-    { Name : "priv-subnet-k8s${count.index}-${local.az_zone[count.index]}-${module.common.common_name}" }
+    { Name : "priv-subnet-k8s${count.index}-${local.az[count.index]}-${module.common.common_name}" }
   )
+
+  # Secondary CIDR가 VPC에 추가된 후에 서브넷 생성
+  depends_on = [aws_vpc_ipv4_cidr_block_association.secondary]
 }
 
 
