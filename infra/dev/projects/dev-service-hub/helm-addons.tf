@@ -1,0 +1,157 @@
+# ============================================================================
+# Metrics Server
+# ============================================================================
+resource "helm_release" "metrics_server" {
+  name       = "metrics-server"
+  repository = "https://kubernetes-sigs.github.io/metrics-server/"
+  chart      = "metrics-server"
+  version    = "3.13.0"
+  namespace  = "kube-system"
+
+  set {
+    name  = "args[0]"
+    value = "--kubelet-preferred-address-types=InternalIP"
+  }
+
+  # infra 노드에만 배치 (nodeSelector 키에 점이 있어 values 블록으로 처리)
+  values = [yamlencode({
+    tolerations  = [{ key = "node-role", operator = "Equal", value = "infra", effect = "NoSchedule" }]
+    # tolerations  = [{ operator = "Exists" }]
+    nodeSelector = { node-role = "infra" }
+  })]
+
+  depends_on = [
+    aws_eks_node_group.services,
+    aws_eks_addon.coredns,
+  ]
+}
+
+# ============================================================================
+# AWS Load Balancer Controller
+# ============================================================================
+resource "helm_release" "alb_controller" {
+  name       = "aws-load-balancer-controller"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  version    = "1.17.1"
+  namespace  = "kube-system"
+
+  disable_openapi_validation = true
+  wait                       = true
+  timeout                    = 600
+  atomic                     = true
+  cleanup_on_fail            = true
+
+  set {
+    name  = "clusterName"
+    value = aws_eks_cluster.this.name
+  }
+
+  set {
+    name  = "vpcId"
+    value = var.vpc_id
+  }
+
+  set {
+    name  = "serviceAccount.create"
+    value = "true"
+  }
+
+  set {
+    name  = "serviceAccount.name"
+    value = "aws-load-balancer-controller"
+  }
+
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = aws_iam_role.alb_controller.arn
+  }
+
+  # infra 노드에만 배치 (nodeSelector 키에 점이 있어 values 블록으로 처리)
+  values = [yamlencode({
+    tolerations  = [{ key = "node-role", operator = "Equal", value = "infra", effect = "NoSchedule" }]
+    # tolerations  = [{ operator = "Exists" }]
+    nodeSelector = { node-role = "infra" }
+  })]
+
+  depends_on = [
+    aws_eks_node_group.services,
+    aws_eks_addon.coredns,
+    aws_iam_role.alb_controller,
+  ]
+}
+
+# ============================================================================
+# Cluster Autoscaler
+# ============================================================================
+resource "helm_release" "cluster_autoscaler" {
+  name       = "cluster-autoscaler"
+  repository = "https://kubernetes.github.io/autoscaler"
+  chart      = "cluster-autoscaler"
+  version    = "9.54.1"
+  namespace  = "kube-system"
+
+  set {
+    name  = "autoDiscovery.clusterName"
+    value = aws_eks_cluster.this.name
+  }
+
+  set {
+    name  = "awsRegion"
+    value = var.aws_region
+  }
+
+  set {
+    name  = "rbac.serviceAccount.create"
+    value = "true"
+  }
+
+  set {
+    name  = "rbac.serviceAccount.name"
+    value = "cluster-autoscaler"
+  }
+
+  set {
+    name  = "rbac.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = aws_iam_role.cluster_autoscaler.arn
+  }
+
+  # infra 노드에만 배치 (nodeSelector 키에 점이 있어 values 블록으로 처리)
+  values = [yamlencode({
+    tolerations  = [{ key = "node-role", operator = "Equal", value = "infra", effect = "NoSchedule" }]
+    # tolerations  = [{ operator = "Exists" }]
+    nodeSelector = { node-role = "infra" }
+  })]
+
+  depends_on = [
+    aws_eks_node_group.services,
+    aws_eks_addon.coredns,
+    aws_iam_role.cluster_autoscaler,
+  ]
+}
+
+# ============================================================================
+# Kube Prometheus Stack (Prometheus + Grafana + AlertManager)
+# ============================================================================
+resource "helm_release" "kube_prometheus_stack" {
+  name             = "kube-prometheus-stack"
+  repository       = "https://prometheus-community.github.io/helm-charts"
+  chart            = "kube-prometheus-stack"
+  version          = "81.0.0"
+  namespace        = "monitoring"
+  create_namespace = true
+
+  # 타임아웃 설정 (CRD 설치에 시간 소요)
+  timeout = 600
+  wait    = true
+
+  # values 파일 참조 (tolerations 포함)
+  values = [
+    file("${path.module}/values/kube-prometheus-stack-values.yaml")
+  ]
+
+  depends_on = [
+    aws_eks_node_group.services,
+    aws_eks_addon.coredns,
+  ]
+}

@@ -1,0 +1,111 @@
+# ============================================================================
+# Prometheus Operator → infra 노드
+# ============================================================================
+prometheusOperator:
+  tolerations:
+    - key: "node-role"
+      operator: "Equal"
+      value: "infra"
+      effect: "NoSchedule"
+  nodeSelector:
+    node-role: infra
+
+  admissionWebhooks:
+    patch:
+      tolerations:
+        - key: "node-role"
+          operator: "Equal"
+          value: "infra"
+          effect: "NoSchedule"
+
+# ============================================================================
+# Grafana → infra 노드
+# ============================================================================
+grafana:
+  adminPassword: "*******"  # 배포 후 변경 권장
+
+  tolerations:
+    - key: "node-role"
+      operator: "Equal"
+      value: "infra"
+      effect: "NoSchedule"
+  nodeSelector:
+    node-role: infra
+
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/group.name: "dev-service-hub"
+      alb.ingress.kubernetes.io/group.order: "800"
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-nor*******fc8b8
+      alb.ingress.kubernetes.io/healthcheck-path: "/api/health"
+    hosts:
+      - grafana-dev-service-hub.nextpay.co.kr
+    path: /
+    pathType: Prefix
+
+  grafana.ini:
+    server:
+      root_url: "%(protocol)s://%(domain)s/"
+
+  persistence:
+    enabled: false
+
+# ============================================================================
+# Prometheus → infra 노드
+# ============================================================================
+prometheus:
+  ingress:
+    enabled: false
+
+  prometheusSpec:
+    retention: 7d
+    storageSpec: {}
+
+    tolerations:
+      - key: "node-role"
+        operator: "Equal"
+        value: "infra"
+        effect: "NoSchedule"
+    nodeSelector:
+      node-role: infra
+
+# ============================================================================
+# AlertManager → infra 노드
+# ============================================================================
+alertmanager:
+  ingress:
+    enabled: false
+
+  alertmanagerSpec:
+    tolerations:
+      - key: "node-role"
+        operator: "Equal"
+        value: "infra"
+        effect: "NoSchedule"
+    nodeSelector:
+      node-role: infra
+
+# ============================================================================
+# kube-state-metrics → infra 노드
+# ============================================================================
+kube-state-metrics:
+  tolerations:
+    - key: "node-role"
+      operator: "Equal"
+      value: "infra"
+      effect: "NoSchedule"
+  nodeSelector:
+    node-role: infra
+
+# ============================================================================
+# Node Exporter → 전체 노드 (모든 노드 메트릭 수집)
+# ============================================================================
+prometheus-node-exporter:
+  tolerations:
+    - operator: "Exists"
